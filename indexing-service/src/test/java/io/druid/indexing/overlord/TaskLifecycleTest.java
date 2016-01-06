@@ -421,7 +421,7 @@ public class TaskLifecycleTest
           }
 
           @Override
-          public void stop()
+          public void close()
           {
             //Noop
           }
