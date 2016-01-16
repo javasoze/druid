@@ -317,12 +317,6 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
             {
               final Set<DataSegment> inserted = Sets.newHashSet();
 
-              for (final DataSegment segment : segments) {
-                if (announceHistoricalSegment(handle, segment)) {
-                  inserted.add(segment);
-                }
-              }
-
               if (startMetadata != null) {
                 final boolean success = updateDataSourceMetadataWithHandle(
                     handle,
@@ -335,6 +329,12 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
                   transactionStatus.setRollbackOnly();
                   txnFailure.set(true);
                   return null;
+                }
+              }
+
+              for (final DataSegment segment : segments) {
+                if (announceHistoricalSegment(handle, segment)) {
+                  inserted.add(segment);
                 }
               }
 
