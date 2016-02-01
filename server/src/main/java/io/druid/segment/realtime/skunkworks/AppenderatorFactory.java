@@ -17,29 +17,25 @@
  * under the License.
  */
 
-package io.druid.segment.realtime.plumber;
+package io.druid.segment.realtime.skunkworks;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.realtime.FireDepartmentMetrics;
-import io.druid.segment.realtime.skunkworks.AppenderatorPlumberSchool;
+import io.druid.segment.realtime.appenderator.Appenderator;
 
-/**
- */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = RealtimePlumberSchool.class)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "realtime", value = RealtimePlumberSchool.class),
-    @JsonSubTypes.Type(name = "flushing", value = FlushingPlumberSchool.class)
+    @JsonSubTypes.Type(name = "default", value = DefaultAppenderatorFactory.class),
+    @JsonSubTypes.Type(name = "skunkworks", value = SkunkworksAppenderatorFactory.class),
 })
-public interface PlumberSchool
+public interface AppenderatorFactory
 {
-  /**
-   * Creates a Plumber
-   *
-   * @return returns a plumber
-   */
-  public Plumber findPlumber(DataSchema schema, RealtimeTuningConfig config, FireDepartmentMetrics metrics);
-
+  Appenderator build(
+      DataSchema schema,
+      RealtimeTuningConfig config,
+      FireDepartmentMetrics metrics
+  );
 }
