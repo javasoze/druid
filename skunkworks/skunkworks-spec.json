@@ -5,16 +5,18 @@
       "parser" : {
         "type" : "string",
         "parseSpec" : {
-          "format" : "json",
+          "format" : "regex",
           "timestampSpec" : {
             "column" : "timestamp",
-            "format" : "auto"
+            "format" : "dd/MMM/yyyy:HH:mm:ss Z"
           },
           "dimensionsSpec" : {
             "dimensions": [],
             "dimensionExclusions" : [],
             "spatialDimensions" : []
-          }
+          },
+          "columns" : ["host", "ignore1", "ignore2", "ignore3", "timestamp", "request", "response", "ignore4", "ignore5", "ignore6", "agent"],
+          "pattern" : "^([\\d.]+) (\\S+) (\\S+) (\\S+) \\[([\\w:/]+\\s[+\\-]\\d{4})\\] \"(.+?)\" (\\d{3}) (\\d+) (\\d+) \"([^\"]+)\" \"([^\"]+)\""
         }
       },
       "metricsSpec" : [],
@@ -28,8 +30,8 @@
       "type" : "realtime",
       "firehose" : {
         "type" : "local",
-        "filter" : "*.json",
-        "baseDir" : "/tmp/realtime/input"
+        "filter" : "*.log",
+        "baseDir" : "/Users/john/bitbucket/rapid-examples/nginx_logs/data"
       },
       "plumber" : {
         "type" : "appenderator",

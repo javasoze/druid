@@ -19,18 +19,6 @@
 
 package io.druid.segment.realtime.skunkworks;
 
-import com.google.common.base.Function;
-import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.metamx.common.ISE;
-import com.metamx.common.guava.FunctionalIterable;
-import com.metamx.emitter.EmittingLogger;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.query.BySegmentQueryRunner;
@@ -46,6 +34,7 @@ import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.indexing.DataSchema;
+import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.realtime.appenderator.Appenderator;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 import io.druid.segment.realtime.appenderator.SegmentNotWritableException;
@@ -55,12 +44,25 @@ import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
-import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingDeque;
+
+import org.joda.time.Interval;
+
+import com.google.common.base.Function;
+import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.metamx.common.ISE;
+import com.metamx.common.guava.FunctionalIterable;
+import com.metamx.emitter.EmittingLogger;
 
 public class SkunkworksAppenderator implements Appenderator
 {
@@ -68,6 +70,7 @@ public class SkunkworksAppenderator implements Appenderator
 
   private final DataSchema schema;
   private final QueryRunnerFactoryConglomerate conglomerate;
+  private final RealtimeTuningConfig realtimeTuningConfig;
   private final ExecutorService queryExecutorService;
   private final Map<SegmentIdentifier, SkunkworksSegment> segments = Maps.newHashMap();
   private final VersionedIntervalTimeline<String, SkunkworksSegment> timeline = new VersionedIntervalTimeline<>(
@@ -76,11 +79,13 @@ public class SkunkworksAppenderator implements Appenderator
 
   public SkunkworksAppenderator(
       DataSchema schema,
+      RealtimeTuningConfig realtimeTuningConfig,
       QueryRunnerFactoryConglomerate conglomerate,
       ExecutorService queryExecutorService
   )
   {
     this.schema = schema;
+    this.realtimeTuningConfig = realtimeTuningConfig;
     this.conglomerate = conglomerate;
     this.queryExecutorService = queryExecutorService;
   }
@@ -108,7 +113,7 @@ public class SkunkworksAppenderator implements Appenderator
     synchronized (segments) {
       SkunkworksSegment segment = segments.get(identifier);
       if (segment == null) {
-        segment = new SkunkworksSegment(identifier, new LinkedBlockingDeque<InputRow>());
+        segment = new SkunkworksSegment(identifier, realtimeTuningConfig.getMaxRowsInMemory());
         segments.put(identifier, segment);
         timeline.add(
             identifier.getInterval(),
@@ -117,8 +122,8 @@ public class SkunkworksAppenderator implements Appenderator
         );
       }
 
-      segment.getRows().add(row);
-      return segment.getRows().size();
+      segment.add(row);
+      return segment.getNumRows();
     }
   }
 
@@ -138,7 +143,7 @@ public class SkunkworksAppenderator implements Appenderator
       if (segment == null) {
         throw new ISE("no such segment");
       }
-      return segment.getRows().size();
+      return segment.getNumRows();
     }
   }
 

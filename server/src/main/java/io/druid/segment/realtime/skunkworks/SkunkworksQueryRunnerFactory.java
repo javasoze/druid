@@ -92,7 +92,7 @@ public class SkunkworksQueryRunnerFactory
           ImmutableList.of(
               new Result<>(
                   segment.getDataInterval().getStart(),
-                  new SkunkworksQueryResultValue(segment.getRows().size())
+                  new SkunkworksQueryResultValue(segment.getNumRows())
               )
           )
       );

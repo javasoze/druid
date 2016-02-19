@@ -24,23 +24,52 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
-import org.joda.time.Interval;
 
 import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
+
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.codecs.lucene50.Lucene50StoredFieldsFormat.Mode;
+import org.apache.lucene.codecs.lucene54.Lucene54Codec;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.IndexWriterConfig.OpenMode;
+import org.apache.lucene.index.NoDeletionPolicy;
+import org.apache.lucene.index.NoMergePolicy;
+import org.apache.lucene.index.NoMergeScheduler;
+import org.apache.lucene.store.RAMDirectory;
+import org.joda.time.Interval;
 
 public class SkunkworksSegment implements Segment
 {
   private final SegmentIdentifier identifier;
-  private final BlockingQueue<InputRow> rows;
+  private RAMDirectory dir;
+  private final int maxRowsInMemory;
+  private int numRows = 0;
+  
+  static IndexWriter buildRamWriter(RAMDirectory dir, Analyzer analyzer, int maxDocsPerSegment) throws IOException {
+    IndexWriterConfig writerConfig = new IndexWriterConfig(analyzer);
+    writerConfig.setOpenMode(OpenMode.CREATE_OR_APPEND);
+    writerConfig.setCodec(new Lucene54Codec(Mode.BEST_COMPRESSION));
+    // some arbitrary large numbers
+    writerConfig.setMaxBufferedDocs(maxDocsPerSegment * 2);        
+    writerConfig.setRAMBufferSizeMB(5000);
+    writerConfig.setUseCompoundFile(false);
+    writerConfig.setCommitOnClose(true);
+    writerConfig.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
+    writerConfig.setMergePolicy(NoMergePolicy.INSTANCE);
+    writerConfig.setMergeScheduler(NoMergeScheduler.INSTANCE);
+    return new IndexWriter(dir, writerConfig);
+  }
 
   public SkunkworksSegment(
       SegmentIdentifier identifier,
-      BlockingQueue<InputRow> rows
+      int maxRowsInMemory
   )
   {
     this.identifier = identifier;
-    this.rows = rows;
+    this.dir = new RAMDirectory();
+    this.maxRowsInMemory = maxRowsInMemory;
   }
 
   @Override
@@ -66,13 +95,21 @@ public class SkunkworksSegment implements Segment
   {
     return null;
   }
+  
+  public void add(InputRow row) {	  
+	numRows ++;
+  }
+  
+  public int getNumRows() {
+	return numRows;
+  }
 
   /**
    * Hack alert! Should really be a new "asXXX" method in "Segment".
    */
-  public BlockingQueue<InputRow> getRows()
+  public IndexReader getIndexReader()
   {
-    return rows;
+	  return null;
   }
 
   @Override

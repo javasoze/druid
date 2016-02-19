@@ -52,6 +52,6 @@ public class SkunkworksAppenderatorFactory implements AppenderatorFactory
       FireDepartmentMetrics metrics
   )
   {
-    return new SkunkworksAppenderator(schema, conglomerate, queryExecutorService);
+    return new SkunkworksAppenderator(schema, config, conglomerate, queryExecutorService);
   }
 }

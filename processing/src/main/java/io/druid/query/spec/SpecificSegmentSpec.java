@@ -23,10 +23,15 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.SegmentDescriptor;
-import org.joda.time.Interval;
 
 import java.util.Arrays;
 import java.util.List;
+
+import org.joda.time.Interval;
+import org.joda.time.Period;
+import org.joda.time.format.PeriodFormat;
+import org.joda.time.format.PeriodFormatter;
+import org.joda.time.format.PeriodFormatterBuilder;
 
 /**
 */
@@ -71,5 +76,11 @@ public class SpecificSegmentSpec implements QuerySegmentSpec
   public int hashCode()
   {
     return descriptor != null ? descriptor.hashCode() : 0;
+  }
+  
+  public static void main(String[] args) {
+	  PeriodFormatter formatter = new PeriodFormatterBuilder()
+	  .appendSecondsWithOptionalMillis().appendSuffix(" seconds").toFormatter();
+	  System.out.println(formatter.print(new Period(700)));
   }
 }
