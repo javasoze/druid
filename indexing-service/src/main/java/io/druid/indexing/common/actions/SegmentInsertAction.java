@@ -72,6 +72,18 @@ public class SegmentInsertAction implements TaskAction<SegmentPublishResult>
     return segments;
   }
 
+  @JsonProperty
+  public DataSourceMetadata getStartMetadata()
+  {
+    return startMetadata;
+  }
+
+  @JsonProperty
+  public DataSourceMetadata getEndMetadata()
+  {
+    return endMetadata;
+  }
+
   public TypeReference<SegmentPublishResult> getReturnTypeReference()
   {
     return new TypeReference<SegmentPublishResult>()
