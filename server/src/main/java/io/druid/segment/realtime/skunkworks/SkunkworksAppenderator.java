@@ -73,6 +73,9 @@ public class SkunkworksAppenderator implements Appenderator
   private final RealtimeTuningConfig realtimeTuningConfig;
   private final ExecutorService queryExecutorService;
   private final Map<SegmentIdentifier, SkunkworksSegment> segments = Maps.newHashMap();
+
+  private final IndexReaderRefresher readerRefresher;
+  
   private final VersionedIntervalTimeline<String, SkunkworksSegment> timeline = new VersionedIntervalTimeline<>(
       Ordering.natural()
   );
@@ -88,6 +91,7 @@ public class SkunkworksAppenderator implements Appenderator
     this.realtimeTuningConfig = realtimeTuningConfig;
     this.conglomerate = conglomerate;
     this.queryExecutorService = queryExecutorService;
+    this.readerRefresher = new IndexReaderRefresher(5);    
   }
 
   @Override
@@ -100,6 +104,7 @@ public class SkunkworksAppenderator implements Appenderator
   public Object startJob()
   {
     // TODO - should reload data from disk
+	readerRefresher.start();
     return null;
   }
 
@@ -120,6 +125,7 @@ public class SkunkworksAppenderator implements Appenderator
             identifier.getVersion(),
             identifier.getShardSpec().createChunk(segment)
         );
+        readerRefresher.updateDirectory(segment.getDirectory());
       }
 
       segment.add(row);
