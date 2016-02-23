@@ -58,7 +58,6 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.QueryToolChest;
-import io.druid.query.ReferenceCountingSegmentQueryRunner;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
@@ -68,7 +67,6 @@ import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
-import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.indexing.DataSchema;
@@ -82,7 +80,6 @@ import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
-import io.druid.timeline.partition.SingleElementPartitionChunk;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -218,7 +215,7 @@ public class AppenderatorImpl implements Appenderator
       );
     }
 
-    final Sink sink = getSink(identifier);
+    final Sink sink = getOrCreateSink(identifier);
     int sinkRetVal;
 
     try {
@@ -259,7 +256,7 @@ public class AppenderatorImpl implements Appenderator
     }
   }
 
-  private Sink getSink(final SegmentIdentifier identifier)
+  private Sink getOrCreateSink(final SegmentIdentifier identifier)
   {
     Sink retVal = sinks.get(identifier);
 
