@@ -50,6 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class Sink implements Iterable<FireHydrant>
 {
+  private static final int ADD_FAILED = -1;
 
   private final Object hydrantLock = new Object();
   private final Interval interval;
@@ -132,12 +133,12 @@ public class Sink implements Iterable<FireHydrant>
 
     synchronized (hydrantLock) {
       if (!writable) {
-        return -1;
+        return ADD_FAILED;
       }
 
       IncrementalIndex index = currHydrant.getIndex();
       if (index == null) {
-        return -1; // the hydrant was swapped without being replaced
+        return ADD_FAILED; // the hydrant was swapped without being replaced
       }
       return index.add(row);
     }
