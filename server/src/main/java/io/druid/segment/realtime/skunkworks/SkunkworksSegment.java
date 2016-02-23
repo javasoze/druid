@@ -32,6 +32,7 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.lucene50.Lucene50StoredFieldsFormat.Mode;
 import org.apache.lucene.codecs.lucene54.Lucene54Codec;
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -58,7 +59,7 @@ public class SkunkworksSegment implements Segment
   private int numRows = 0;
   private IndexWriter currentWriter = null;
   private final DocumentBuilder docBuilder;
-  private IndexReader currentReader = null;
+  private volatile DirectoryReader currentReader = null;
 
   static IndexWriter buildRamWriter(RAMDirectory dir, Analyzer analyzer,
       int maxRowsInMemory) throws IOException
@@ -154,13 +155,32 @@ public class SkunkworksSegment implements Segment
   {
     return numRows;
   }
+  
+  public void refreshReader() throws IOException {
+    log.info("refreshing reader for segment: " + this.getIdentifier());
+    if (currentReader == null) {
+      currentReader = DirectoryReader.open(currentWriter, false);
+      currentReader.incRef();
+      log.info("new segment reader acquired");
+    } else {
+      log.info("refreshing segment reader");
+      DirectoryReader newReader = DirectoryReader.openIfChanged(currentReader);
+      if (newReader != null && newReader != currentReader) {
+        newReader.incRef();
+        DirectoryReader tmpReader = currentReader;        
+        currentReader = newReader;
+        tmpReader.close();
+        log.info("new segment reader updated, old reader discarded");
+      }      
+    }
+  }
 
   /**
    * Hack alert! Should really be a new "asXXX" method in "Segment".
    */
   public IndexReader getIndexReader()
   {
-    return null;
+    return currentReader;
   }
 
   @Override

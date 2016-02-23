@@ -109,14 +109,18 @@ public class SkunkworksQueryRunnerFactory
       Analyzer analyzer = new StandardAnalyzer();
       QueryParser parser = segment.getQueryParser(analyzer);
       try (IndexReader reader = segment.getIndexReader()) {
-        org.apache.lucene.search.Query luceneQuery = (queryString == null || "*".equals(queryString)) ? 
-            new MatchAllDocsQuery() :
-            parser.parse(queryString);
-        IndexSearcher searcher = new IndexSearcher(reader);        
-        TopDocs td = searcher.search(luceneQuery, skunkworksQuery.getCount());
-        numHits = td.totalHits;
+        if (reader != null) {
+          log.info("we have a reader to search with " + reader.numDocs() +" docs");
+          org.apache.lucene.search.Query luceneQuery = (queryString == null || "*".equals(queryString)) ? 
+              new MatchAllDocsQuery() :
+              parser.parse(queryString);
+          log.info("lucene query: " + luceneQuery);
+          IndexSearcher searcher = new IndexSearcher(reader);        
+          TopDocs td = searcher.search(luceneQuery, skunkworksQuery.getCount());
+          numHits = td.totalHits;
+        }
       } catch (Exception e) {
-        log.error(e.getMessage(), e);
+        log.error(e, e.getMessage());
       }
       
       // Do something cool. In this case we'll just count the number of rows and return it as a single result.

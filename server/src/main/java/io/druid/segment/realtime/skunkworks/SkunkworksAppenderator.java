@@ -131,7 +131,7 @@ public class SkunkworksAppenderator implements Appenderator
             identifier.getVersion(),
             identifier.getShardSpec().createChunk(segment)
         );
-        readerRefresher.setCurrentWriter(segment.getCurrentWriter());
+        readerRefresher.setCurrentSegment(segment);
       }
 
       segment.add(row);
