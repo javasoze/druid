@@ -22,6 +22,7 @@ package io.druid.indexing.kafka;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Maps;
+import com.metamx.common.IAE;
 import io.druid.indexing.overlord.DataSourceMetadata;
 
 import java.util.Map;
@@ -64,6 +65,14 @@ public class KafkaDataSourceMetadata implements DataSourceMetadata
   @Override
   public DataSourceMetadata plus(DataSourceMetadata other)
   {
+    if (!(other instanceof KafkaDataSourceMetadata)) {
+      throw new IAE(
+          "Expected instance of %s, got %s",
+          KafkaDataSourceMetadata.class.getCanonicalName(),
+          other.getClass().getCanonicalName()
+      );
+    }
+
     final KafkaDataSourceMetadata that = (KafkaDataSourceMetadata) other;
 
     if (that.getKafkaPartitions().getTopic().equals(kafkaPartitions.getTopic())) {

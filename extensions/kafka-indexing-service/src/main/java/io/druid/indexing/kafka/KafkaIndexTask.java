@@ -151,8 +151,8 @@ public class KafkaIndexTask extends AbstractTask
     return tuningConfig;
   }
 
-  @JsonProperty
-  public KafkaIOConfig getIoConfig()
+  @JsonProperty("ioConfig")
+  public KafkaIOConfig getIOConfig()
   {
     return ioConfig;
   }
