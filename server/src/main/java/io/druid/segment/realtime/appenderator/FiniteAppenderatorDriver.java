@@ -276,6 +276,15 @@ public class FiniteAppenderatorDriver implements Closeable
     }
   }
 
+  /**
+   * Return a segment usable for "timestamp". May return null if no segment can be allocated.
+   *
+   * @param timestamp data timestamp
+   *
+   * @return identifier, or null
+   *
+   * @throws IOException if an exception occurs while allocating a segment
+   */
   private SegmentIdentifier getSegment(final DateTime timestamp) throws IOException
   {
     synchronized (activeSegments) {
