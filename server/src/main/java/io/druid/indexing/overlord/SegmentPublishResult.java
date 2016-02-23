@@ -32,6 +32,10 @@ import java.util.Set;
  * and whether or not the transaction was a success.
  *
  * If "success" is false then the segments set will be empty.
+ *
+ * It's possible for the segments set to be empty even if "success" is true, since the segments set only
+ * includes segments actually published as part of the transaction. The requested segments could have been
+ * published by a different transaction (e.g. in the case of replica sets) and this one would still succeed.
  */
 public class SegmentPublishResult
 {
