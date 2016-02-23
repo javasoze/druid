@@ -19,8 +19,6 @@
 
 package io.druid.segment.realtime.skunkworks;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -29,15 +27,22 @@ import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class SkunkworksQuery extends BaseQuery<Result<SkunkworksQueryResultValue>>
 {
   private static final String TYPE = "skunkworks";
+  private final String queryString;
+  private final int count;
 
   @JsonCreator
   public SkunkworksQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
-      @JsonProperty("context") Map<String, Object> context
+      @JsonProperty("context") Map<String, Object> context,
+      @JsonProperty("query") String queryString,
+      @JsonProperty("count") int count
   )
   {
     super(
@@ -46,6 +51,16 @@ public class SkunkworksQuery extends BaseQuery<Result<SkunkworksQueryResultValue
         false,
         context
     );
+    this.queryString = queryString;
+    this.count = count;
+  }
+  
+  public int getCount() {
+    return count;
+  }
+  
+  public String getQueryString() {
+    return queryString;
   }
 
   @Override
@@ -63,18 +78,19 @@ public class SkunkworksQuery extends BaseQuery<Result<SkunkworksQueryResultValue
   @Override
   public Query<Result<SkunkworksQueryResultValue>> withOverriddenContext(Map<String, Object> contextOverride)
   {
-    return new SkunkworksQuery(getDataSource(), getQuerySegmentSpec(), computeOverridenContext(contextOverride));
+    return new SkunkworksQuery(getDataSource(), getQuerySegmentSpec(), 
+        computeOverridenContext(contextOverride), queryString, count);
   }
 
   @Override
   public Query<Result<SkunkworksQueryResultValue>> withQuerySegmentSpec(QuerySegmentSpec spec)
   {
-    return new SkunkworksQuery(getDataSource(), spec, getContext());
+    return new SkunkworksQuery(getDataSource(), spec, getContext(), queryString, count);
   }
 
   @Override
   public Query<Result<SkunkworksQueryResultValue>> withDataSource(DataSource dataSource)
   {
-    return new SkunkworksQuery(dataSource, getQuerySegmentSpec(), getContext());
+    return new SkunkworksQuery(dataSource, getQuerySegmentSpec(), getContext(), queryString, count);
   }
 }

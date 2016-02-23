@@ -19,10 +19,6 @@
 
 package io.druid.segment.realtime.skunkworks;
 
-import com.google.common.collect.ImmutableList;
-import com.google.inject.Inject;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -34,9 +30,25 @@ import io.druid.segment.Segment;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.MatchAllDocsQuery;
+import org.apache.lucene.search.TopDocs;
+
+import com.google.common.collect.ImmutableList;
+import com.google.inject.Inject;
+import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
+import com.metamx.emitter.EmittingLogger;
+
 public class SkunkworksQueryRunnerFactory
     implements QueryRunnerFactory<Result<SkunkworksQueryResultValue>, SkunkworksQuery>
 {
+  private static final EmittingLogger log = new EmittingLogger(
+      SkunkworksQueryRunnerFactory.class);
   private final QueryWatcher watcher;
 
   @Inject
@@ -50,6 +62,7 @@ public class SkunkworksQueryRunnerFactory
   @Override
   public QueryRunner<Result<SkunkworksQueryResultValue>> createRunner(final Segment segment)
   {
+    log.info("create runner");
     return new SkunkworksQueryRunner((SkunkworksSegment) segment);
   }
 
@@ -74,7 +87,7 @@ public class SkunkworksQueryRunnerFactory
 
   private static class SkunkworksQueryRunner implements QueryRunner<Result<SkunkworksQueryResultValue>>
   {
-    private final SkunkworksSegment segment;
+    private final SkunkworksSegment segment;    
 
     public SkunkworksQueryRunner(SkunkworksSegment segment)
     {
@@ -87,12 +100,31 @@ public class SkunkworksQueryRunnerFactory
         final Map<String, Object> responseContext
     )
     {
+      log.info("here... handling run");
+      SkunkworksQuery skunkworksQuery = (SkunkworksQuery) query;
+      long numHits = 0;
+      long totalDocs = segment.getNumRows();
+      String queryString = skunkworksQuery.getQueryString();
+      log.info("query string: " + queryString);
+      Analyzer analyzer = new StandardAnalyzer();
+      QueryParser parser = segment.getQueryParser(analyzer);
+      try (IndexReader reader = segment.getIndexReader()) {
+        org.apache.lucene.search.Query luceneQuery = (queryString == null || "*".equals(queryString)) ? 
+            new MatchAllDocsQuery() :
+            parser.parse(queryString);
+        IndexSearcher searcher = new IndexSearcher(reader);        
+        TopDocs td = searcher.search(luceneQuery, skunkworksQuery.getCount());
+        numHits = td.totalHits;
+      } catch (Exception e) {
+        log.error(e.getMessage(), e);
+      }
+      
       // Do something cool. In this case we'll just count the number of rows and return it as a single result.
       return Sequences.simple(
           ImmutableList.of(
               new Result<>(
                   segment.getDataInterval().getStart(),
-                  new SkunkworksQueryResultValue(segment.getNumRows())
+                  new SkunkworksQueryResultValue(numHits, totalDocs)
               )
           )
       );

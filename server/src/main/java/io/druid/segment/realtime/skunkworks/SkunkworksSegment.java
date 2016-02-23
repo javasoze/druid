@@ -26,6 +26,7 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 
 import java.io.IOException;
+import java.util.Set;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -38,6 +39,8 @@ import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.NoMergeScheduler;
+import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
+import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.joda.time.Interval;
@@ -89,6 +92,18 @@ public class SkunkworksSegment implements Segment
     }
     this.docBuilder = docBuilder;
   }
+  
+  public QueryParser getQueryParser(Analyzer analyzer) {    
+    Set<String> defaultFields = docBuilder.searchableFields();
+    if (defaultFields == null || defaultFields.isEmpty()) {
+      return new QueryParser("text", analyzer);
+    } else {
+      MultiFieldQueryParser parser = new MultiFieldQueryParser(
+        defaultFields.toArray(new String[defaultFields.size()]), analyzer);
+      // parser.setDefaultOperator(Operator.AND);
+      return parser;
+    }
+  }
 
   public Directory getDirectory()
   {
@@ -129,6 +144,10 @@ public class SkunkworksSegment implements Segment
       log.error(e.getMessage(), e);
     }
     numRows++;
+  }
+  
+  public IndexWriter getCurrentWriter() {
+    return currentWriter;
   }
 
   public int getNumRows()

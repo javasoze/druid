@@ -19,34 +19,43 @@
 
 package io.druid.segment.realtime.skunkworks;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.Objects;
-
 public class SkunkworksQueryResultValue
 {
-  private final long count;
-
+  private final long numHits;
+  private final long totalCount;
+  
   @JsonCreator
   public SkunkworksQueryResultValue(
-      @JsonProperty("count") long count
+      @JsonProperty("numHits") long numHits,
+      @JsonProperty("totalCount") long totalCount
   )
   {
-    this.count = count;
+    this.numHits = numHits;
+    this.totalCount = totalCount;
   }
 
   @JsonProperty
-  public long getCount()
+  public long getNumHits()
   {
-    return count;
+    return numHits;
+  }
+  
+  @JsonProperty
+  public long getTotalCount()
+  {
+    return totalCount;
   }
 
   @Override
   public String toString()
   {
     return "SkunkworksQueryResultValue{" +
-           "count=" + count +
+           "numHits=" + numHits +
            '}';
   }
 
@@ -60,12 +69,12 @@ public class SkunkworksQueryResultValue
       return false;
     }
     SkunkworksQueryResultValue that = (SkunkworksQueryResultValue) o;
-    return count == that.count;
+    return numHits == that.numHits && totalCount == that.totalCount;
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(count);
+    return Objects.hash(numHits, totalCount);
   }
 }

@@ -19,12 +19,6 @@
 
 package io.druid.segment.realtime.skunkworks;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
-import com.google.common.collect.Ordering;
-import com.metamx.common.guava.nary.BinaryFn;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.utils.JodaUtils;
 import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
@@ -35,6 +29,13 @@ import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.aggregation.MetricManipulationFn;
 
 import javax.annotation.Nullable;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Function;
+import com.google.common.base.Functions;
+import com.google.common.collect.Ordering;
+import com.metamx.common.guava.nary.BinaryFn;
+import com.metamx.emitter.service.ServiceMetricEvent;
 
 public class SkunkworksQueryToolChest
     extends QueryToolChest<Result<SkunkworksQueryResultValue>, SkunkworksQuery>
@@ -74,7 +75,8 @@ public class SkunkworksQueryToolChest
             } else {
               return new Result<>(
                   JodaUtils.minDateTime(result1.getTimestamp(), result2.getTimestamp()),
-                  new SkunkworksQueryResultValue(result1.getValue().getCount() + result2.getValue().getCount())
+                  new SkunkworksQueryResultValue(result1.getValue().getNumHits() + result2.getValue().getNumHits(),
+                      result1.getValue().getTotalCount() + result2.getValue().getTotalCount())
               );
             }
           }

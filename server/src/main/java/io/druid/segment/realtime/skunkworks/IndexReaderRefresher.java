@@ -4,7 +4,7 @@ import java.io.IOException;
 
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.store.Directory;
+import org.apache.lucene.index.IndexWriter;
 
 import com.metamx.emitter.EmittingLogger;
 
@@ -15,15 +15,15 @@ public class IndexReaderRefresher extends Thread {
 	private DirectoryReader currentReader;
 	private final long refreshRateInSec;
 	private volatile boolean stop = false;
-	private Directory dir;
+	private IndexWriter currentWriter;
 
 	public IndexReaderRefresher(long refreshRateInSec) {
 		this.refreshRateInSec = refreshRateInSec;
-		this.dir = null;
+		this.currentWriter = null;
 	}
 	
-	public void updateDirectory(Directory dir) {
-		this.dir = dir;
+	public void setCurrentWriter(IndexWriter currentWriter) {
+		this.currentWriter = currentWriter;
 	}
 	
 	public void terminate() {
@@ -40,26 +40,27 @@ public class IndexReaderRefresher extends Thread {
 	public void run() {
 		while (!stop) {
 			try {
-				if (dir != null) {
+				if (currentWriter != null) {
 					if (currentReader == null) {
-						currentReader = DirectoryReader.open(dir);
+						currentReader = DirectoryReader.open(currentWriter, false);
 					} else {
 						IndexReader tmpReader = currentReader;
-						if (currentReader.directory() != dir) {  // directory updated
-							currentReader = DirectoryReader.open(dir);
-						} else {
-							currentReader = DirectoryReader.openIfChanged(currentReader);
-						}
+						currentReader = DirectoryReader.openIfChanged(currentReader);
 						if (tmpReader != currentReader) {
-							tmpReader.close();
-						}
+						  tmpReader.close();
+						}						
 					}
 				}
-				Thread.sleep(refreshRateInSec * 1000);
-			} catch (InterruptedException e) {
-				continue;
 			} catch (IOException ioe) {
 				log.error(ioe.getMessage(), ioe);
+			} finally {
+			  try
+        {
+          Thread.sleep(refreshRateInSec * 1000);
+        } catch (InterruptedException e)
+        {
+          continue;
+        }
 			}
 		}
 	}

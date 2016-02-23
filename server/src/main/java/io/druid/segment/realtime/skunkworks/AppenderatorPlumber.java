@@ -84,12 +84,12 @@ public class AppenderatorPlumber implements Plumber
   private final Map<Long, SegmentIdentifier> segments = Maps.newConcurrentMap();
   private final Appenderator appenderator;
 
-  private volatile boolean shuttingDown = false;
   private volatile boolean stopped = false;
   private volatile boolean cleanShutdown = true;
   private volatile ScheduledExecutorService scheduledExecutor = null;
 
   private volatile Supplier<Committer> lastCommitterSupplier = null;
+  private volatile boolean shuttingDown = false;
 
   public AppenderatorPlumber(
       DataSchema schema,

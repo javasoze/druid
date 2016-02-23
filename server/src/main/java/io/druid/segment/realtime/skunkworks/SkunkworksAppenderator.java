@@ -131,7 +131,7 @@ public class SkunkworksAppenderator implements Appenderator
             identifier.getVersion(),
             identifier.getShardSpec().createChunk(segment)
         );
-        readerRefresher.updateDirectory(segment.getDirectory());
+        readerRefresher.setCurrentWriter(segment.getCurrentWriter());
       }
 
       segment.add(row);
@@ -194,6 +194,8 @@ public class SkunkworksAppenderator implements Appenderator
   @Override
   public ListenableFuture<Object> persistAll(Committer committer)
   {
+    log.info("persis called");
+    
     // TODO - should persist any un-persisted data to disk in a background thread
     return Futures.immediateFuture(null);
   }
@@ -216,7 +218,7 @@ public class SkunkworksAppenderator implements Appenderator
   @Override
   public void close()
   {
-    // Nothing to do
+    readerRefresher.terminate();
   }
 
   @Override

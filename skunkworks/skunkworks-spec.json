@@ -22,7 +22,7 @@
       "metricsSpec" : [],
       "granularitySpec" : {
         "type" : "uniform",
-        "segmentGranularity" : "MINUTE",
+        "segmentGranularity" : "HOUR",
         "queryGranularity" : "NONE"
       }
     },
@@ -37,13 +37,13 @@
         "type" : "appenderator",
         "appenderator" : {
           "type" : "skunkworks",
-          "baseDir" : "/Users/john/data/skunkworks/index"
           "documentBuilderClass": "io.druid.segment.realtime.skunkworks.NginxDocumentBuilder"
         }
       }
     },
     "tuningConfig": {
       "type" : "realtime",
+      "maxRowsInMemory" : 50000,
       "windowPeriod": "P1000D",
       "basePersistDirectory": "/tmp/realtime/persist",
       "rejectionPolicy": {

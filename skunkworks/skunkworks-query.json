@@ -1,5 +1,7 @@
 {
   "queryType" : "skunkworks",
   "dataSource" : "skunkworks",
-  "intervals" : "2000/2002"
+  "intervals" : "2000/2002",
+  "query": "Dalvik",
+  "count": "10"
 }

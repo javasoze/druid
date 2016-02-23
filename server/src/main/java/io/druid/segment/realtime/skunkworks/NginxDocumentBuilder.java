@@ -1,6 +1,7 @@
 package io.druid.segment.realtime.skunkworks;
 
 import java.util.List;
+import java.util.Set;
 
 import io.druid.data.input.InputRow;
 
@@ -9,6 +10,8 @@ import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.LongField;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.joda.time.DateTime;
+
+import com.google.common.collect.ImmutableSet;
 
 public class NginxDocumentBuilder implements DocumentBuilder
 {
@@ -61,6 +64,18 @@ public class NginxDocumentBuilder implements DocumentBuilder
     }
 
     return doc;
+  }
+
+  @Override
+  public Set<String> searchableFields()
+  {
+    return ImmutableSet.of("host", "request", "response", "agent");
+  }
+
+  @Override
+  public Set<String> metaFields()
+  {
+    return ImmutableSet.of("host", "request", "response");
   }
 
 }
