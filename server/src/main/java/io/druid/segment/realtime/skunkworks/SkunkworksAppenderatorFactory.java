@@ -19,8 +19,6 @@
 
 package io.druid.segment.realtime.skunkworks;
 
-import com.fasterxml.jackson.annotation.JacksonInject;
-import com.fasterxml.jackson.annotation.JsonCreator;
 import io.druid.guice.annotations.Processing;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.segment.indexing.DataSchema;
@@ -30,19 +28,32 @@ import io.druid.segment.realtime.appenderator.Appenderator;
 
 import java.util.concurrent.ExecutorService;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class SkunkworksAppenderatorFactory implements AppenderatorFactory
 {
   private final QueryRunnerFactoryConglomerate conglomerate;
   private final ExecutorService queryExecutorService;
+  private final DocumentBuilder docBuilder;
 
   @JsonCreator
   public SkunkworksAppenderatorFactory(
       @JacksonInject QueryRunnerFactoryConglomerate conglomerate,
-      @JacksonInject @Processing ExecutorService queryExecutorService
+      @JacksonInject @Processing ExecutorService queryExecutorService,
+      @JsonProperty("documentBuilderClass") Class<? extends DocumentBuilder> documentBuilderClass      
   )
   {
     this.conglomerate = conglomerate;
     this.queryExecutorService = queryExecutorService;
+    try
+    {
+      this.docBuilder = documentBuilderClass.newInstance();
+    } catch (Exception e)
+    {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
@@ -52,6 +63,6 @@ public class SkunkworksAppenderatorFactory implements AppenderatorFactory
       FireDepartmentMetrics metrics
   )
   {
-    return new SkunkworksAppenderator(schema, config, conglomerate, queryExecutorService);
+    return new SkunkworksAppenderator(schema, docBuilder, config, conglomerate, queryExecutorService);
   }
 }

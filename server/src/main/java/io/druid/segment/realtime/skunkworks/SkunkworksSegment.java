@@ -26,16 +26,11 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 
 import java.io.IOException;
-import java.util.List;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.codecs.lucene50.Lucene50StoredFieldsFormat.Mode;
 import org.apache.lucene.codecs.lucene54.Lucene54Codec;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field.Store;
-import org.apache.lucene.document.LongField;
-import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -45,15 +40,14 @@ import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.NoMergeScheduler;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
-import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import com.metamx.emitter.EmittingLogger;
 
 public class SkunkworksSegment implements Segment
 {
-  private static final EmittingLogger log = new EmittingLogger(SkunkworksSegment.class);
-  public static final String SYSTEM_TIME_FIELD = "_time";
+  private static final EmittingLogger log = new EmittingLogger(
+      SkunkworksSegment.class);
   
   private final SegmentIdentifier identifier;
   private RAMDirectory dir;
@@ -62,13 +56,15 @@ public class SkunkworksSegment implements Segment
   private IndexWriter currentWriter = null;
   private final DocumentBuilder docBuilder;
   private IndexReader currentReader = null;
-  
-  static IndexWriter buildRamWriter(RAMDirectory dir, Analyzer analyzer, int maxRowsInMemory) throws IOException {
+
+  static IndexWriter buildRamWriter(RAMDirectory dir, Analyzer analyzer,
+      int maxRowsInMemory) throws IOException
+  {
     IndexWriterConfig writerConfig = new IndexWriterConfig(analyzer);
     writerConfig.setOpenMode(OpenMode.CREATE_OR_APPEND);
     writerConfig.setCodec(new Lucene54Codec(Mode.BEST_COMPRESSION));
     // some arbitrary large numbers
-    writerConfig.setMaxBufferedDocs(maxRowsInMemory * 2);        
+    writerConfig.setMaxBufferedDocs(maxRowsInMemory * 2);
     writerConfig.setRAMBufferSizeMB(5000);
     writerConfig.setUseCompoundFile(false);
     writerConfig.setCommitOnClose(true);
@@ -77,76 +73,26 @@ public class SkunkworksSegment implements Segment
     writerConfig.setMergeScheduler(NoMergeScheduler.INSTANCE);
     return new IndexWriter(dir, writerConfig);
   }
-  
-  private static String extractVal(InputRow row, String dim) {
-	  List<String> valList = row.getDimension(dim);
-	  if (valList != null && !valList.isEmpty()) {
-		  return valList.get(0);
-	  } else {
-		  return null;
-	  }
-  }
-  /**
-   * Ideally this would be constructed by a module and passed in.
-   */
-  static DocumentBuilder createDocumentBuilder() {
-	DocumentBuilder builder = new DocumentBuilder() {
-		
-		@Override
-		public Document buildDocument(InputRow row) {
-			Document doc = new Document();
-			DateTime time = row.getTimestamp();
-			
-			// only store seconds
-			long timeInSec = time.getMillis() / 1000;
-			doc.add(new NumericDocValuesField(SYSTEM_TIME_FIELD,
-			        timeInSec)); 
-			doc.add(new LongField(SYSTEM_TIME_FIELD, timeInSec, Store.NO));
-			
-			String host = extractVal(row, "host");
-			if (host!= null) {
-				IndexerHelper.metaField(doc, "host", host, false);
-			}
-			
-			String request = extractVal(row, "request");
-			if (request!= null) {
-				IndexerHelper.textField(doc, "request", request, true);
-			}
-			
-			String response = extractVal(row, "response");
-			if (response!= null) {
-				IndexerHelper.metaField(doc, "response", response, false);
-			}
-			
-			String agent = extractVal(row, "agent");
-			if (agent!= null) {
-				IndexerHelper.textField(doc, "agent", agent, true);
-			}
-			
-			return doc;
-		}
-	};
-	return builder;
-  }
 
-  public SkunkworksSegment(
-      SegmentIdentifier identifier,
-      int maxRowsInMemory
-  )
+  public SkunkworksSegment(SegmentIdentifier identifier, DocumentBuilder docBuilder, int maxRowsInMemory)
   {
     this.identifier = identifier;
     this.dir = new RAMDirectory();
     this.maxRowsInMemory = maxRowsInMemory;
-    try {
-      this.currentWriter = buildRamWriter(dir, new StandardAnalyzer(), maxRowsInMemory);
-    } catch (IOException ioe) {
+    try
+    {
+      this.currentWriter = buildRamWriter(dir, new StandardAnalyzer(),
+          maxRowsInMemory);
+    } catch (IOException ioe)
+    {
       log.error(ioe, ioe.getMessage());
     }
-    this.docBuilder = createDocumentBuilder();
+    this.docBuilder = docBuilder;
   }
-  
-  public Directory getDirectory() {
-	  return this.dir;
+
+  public Directory getDirectory()
+  {
+    return this.dir;
   }
 
   @Override
@@ -172,18 +118,22 @@ public class SkunkworksSegment implements Segment
   {
     return null;
   }
-  
-  public void add(InputRow row) {
-	try {
-		currentWriter.addDocument(this.docBuilder.buildDocument(row));
-	} catch (IOException e) {
-		log.error(e.getMessage(), e);
-	}
-	numRows ++;
+
+  public void add(InputRow row)
+  {
+    try
+    {
+      currentWriter.addDocument(this.docBuilder.buildDocument(row));
+    } catch (IOException e)
+    {
+      log.error(e.getMessage(), e);
+    }
+    numRows++;
   }
-  
-  public int getNumRows() {
-	return numRows;
+
+  public int getNumRows()
+  {
+    return numRows;
   }
 
   /**
@@ -191,7 +141,7 @@ public class SkunkworksSegment implements Segment
    */
   public IndexReader getIndexReader()
   {
-	  return null;
+    return null;
   }
 
   @Override

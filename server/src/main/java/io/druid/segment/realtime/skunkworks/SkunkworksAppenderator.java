@@ -45,6 +45,7 @@ import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
 
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -69,11 +70,12 @@ public class SkunkworksAppenderator implements Appenderator
   private static final EmittingLogger log = new EmittingLogger(SkunkworksAppenderator.class);
 
   private final DataSchema schema;
+  private final DocumentBuilder docBuilder;
   private final QueryRunnerFactoryConglomerate conglomerate;
   private final RealtimeTuningConfig realtimeTuningConfig;
   private final ExecutorService queryExecutorService;
   private final Map<SegmentIdentifier, SkunkworksSegment> segments = Maps.newHashMap();
-
+  private final File basePersistDir;
   private final IndexReaderRefresher readerRefresher;
   
   private final VersionedIntervalTimeline<String, SkunkworksSegment> timeline = new VersionedIntervalTimeline<>(
@@ -82,16 +84,20 @@ public class SkunkworksAppenderator implements Appenderator
 
   public SkunkworksAppenderator(
       DataSchema schema,
+      DocumentBuilder docBuilder,
       RealtimeTuningConfig realtimeTuningConfig,
       QueryRunnerFactoryConglomerate conglomerate,
       ExecutorService queryExecutorService
   )
   {
     this.schema = schema;
+    this.docBuilder = docBuilder;
     this.realtimeTuningConfig = realtimeTuningConfig;
     this.conglomerate = conglomerate;
     this.queryExecutorService = queryExecutorService;
-    this.readerRefresher = new IndexReaderRefresher(5);    
+    this.readerRefresher = new IndexReaderRefresher(5);
+    basePersistDir = realtimeTuningConfig.getBasePersistDirectory();
+    basePersistDir.mkdirs();
   }
 
   @Override
@@ -104,7 +110,7 @@ public class SkunkworksAppenderator implements Appenderator
   public Object startJob()
   {
     // TODO - should reload data from disk
-	readerRefresher.start();
+	  readerRefresher.start();
     return null;
   }
 
@@ -118,7 +124,7 @@ public class SkunkworksAppenderator implements Appenderator
     synchronized (segments) {
       SkunkworksSegment segment = segments.get(identifier);
       if (segment == null) {
-        segment = new SkunkworksSegment(identifier, realtimeTuningConfig.getMaxRowsInMemory());
+        segment = new SkunkworksSegment(identifier, docBuilder, realtimeTuningConfig.getMaxRowsInMemory());
         segments.put(identifier, segment);
         timeline.add(
             identifier.getInterval(),

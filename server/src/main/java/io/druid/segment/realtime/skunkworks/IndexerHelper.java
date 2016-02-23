@@ -53,23 +53,13 @@ public class IndexerHelper {
 	}
 
 	public static void textField(Document doc, String name, String text,
-			boolean tokenized) {
-		/*
-		 * RapidField field = new RapidField(name); field.value = text;
-		 * field.isTokenized = tokenized; field.isSearchable = true;
-		 * field.isMeta = false; return field;
-		 */
+			boolean tokenized) {		
 		doc.add(new Field(name, text == null ? "" : text,
 				tokenized ? TEXT_FIELD_TYPE : STRING_TEXT_FIELD_TYPE));
 	}
 
 	public static void metaField(Document doc, String name, String val,
 			boolean multi) {
-		/*
-		 * RapidField field = new RapidField(name); field.value = val;
-		 * field.isTokenized = false; field.isSearchable = searchable;
-		 * field.isMeta = true; field.isNumber = false; return field;
-		 */
 		doc.add(new Field(name, val == null ? "" : val, STRING_META_FIELD_TYPE));
 		if (multi) {
 			doc.add(new SortedSetDocValuesField(name, new BytesRef(

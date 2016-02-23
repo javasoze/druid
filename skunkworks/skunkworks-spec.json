@@ -36,7 +36,9 @@
       "plumber" : {
         "type" : "appenderator",
         "appenderator" : {
-          "type" : "skunkworks"
+          "type" : "skunkworks",
+          "baseDir" : "/Users/john/data/skunkworks/index"
+          "documentBuilderClass": "io.druid.segment.realtime.skunkworks.NginxDocumentBuilder"
         }
       }
     },
