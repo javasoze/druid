@@ -19,10 +19,6 @@
 
 package io.druid.query;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.common.collect.Ordering;
-import com.metamx.common.guava.Sequence;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
@@ -33,11 +29,17 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.topn.TopNQuery;
-import org.joda.time.Duration;
-import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
+
+import org.joda.time.Duration;
+import org.joda.time.Interval;
+
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.collect.Ordering;
+import com.metamx.common.guava.Sequence;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "queryType")
 @JsonSubTypes(value = {
