@@ -19,28 +19,6 @@
 
 package io.druid.query.aggregation;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.ObjectCodec;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.type.TypeFactory;
-import com.google.common.base.Function;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.io.Closeables;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.metamx.common.IAE;
-import com.metamx.common.guava.CloseQuietly;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
-import com.metamx.common.guava.Yielder;
-import com.metamx.common.guava.YieldingAccumulator;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
@@ -63,6 +41,7 @@ import io.druid.query.groupby.GroupByQueryRunnerFactory;
 import io.druid.query.select.SelectQueryEngine;
 import io.druid.query.select.SelectQueryQueryToolChest;
 import io.druid.query.select.SelectQueryRunnerFactory;
+import io.druid.segment.AbstractSegment;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexSpec;
@@ -72,9 +51,6 @@ import io.druid.segment.Segment;
 import io.druid.segment.column.ColumnConfig;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.LineIterator;
-import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -85,6 +61,33 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.LineIterator;
+import org.junit.rules.TemporaryFolder;
+
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.ObjectCodec;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.google.common.base.Function;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.io.Closeables;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.metamx.common.IAE;
+import com.metamx.common.guava.CloseQuietly;
+import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
+import com.metamx.common.guava.Yielder;
+import com.metamx.common.guava.YieldingAccumulator;
 
 /**
  * This class provides general utility to test any druid aggregation implementation given raw data,
@@ -387,12 +390,12 @@ public class AggregationTestHelper
 
   public Sequence<Row> runQueryOnSegments(final List<File> segmentDirs, final Query query)
   {
-    final List<Segment> segments = Lists.transform(
+    final List<AbstractSegment> segments = Lists.transform(
         segmentDirs,
-        new Function<File, Segment>()
+        new Function<File, AbstractSegment>()
         {
           @Override
-          public Segment apply(File segmentDir)
+          public AbstractSegment apply(File segmentDir)
           {
             try {
               return new QueryableIndexSegment("", indexIO.loadIndex(segmentDir));
@@ -413,7 +416,7 @@ public class AggregationTestHelper
     }
   }
 
-  public Sequence<Row> runQueryOnSegmentsObjs(final List<Segment> segments, final Query query)
+  public Sequence<Row> runQueryOnSegmentsObjs(final List<AbstractSegment> segments, final Query query)
   {
     final FinalizeResultsQueryRunner baseRunner = new FinalizeResultsQueryRunner(
         toolChest.postMergeQueryDecoration(

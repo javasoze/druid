@@ -17,19 +17,16 @@
  * under the License.
  */
 
-package io.druid.segment;
+package io.druid.segment.loading;
 
+import io.druid.segment.Segment;
 import org.joda.time.Interval;
 
-import java.io.Closeable;
+import java.io.File;
 
 /**
  */
-public interface Segment extends Closeable
+public interface QueryableSegmentFactory
 {
-  public String getIdentifier();
-  public Interval getDataInterval();
-  public QueryableIndex asQueryableIndex();
-  public StorageAdapter asStorageAdapter();
-  public <T> T as(Class<T> clazz);
+  public Segment factorize(String segmentIdentifier, Interval interval, File parentDir) throws SegmentLoadingException;
 }

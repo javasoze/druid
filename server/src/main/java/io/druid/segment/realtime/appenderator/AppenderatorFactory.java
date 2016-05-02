@@ -17,15 +17,24 @@
  * under the License.
  */
 
-package io.druid.segment.loading;
+package io.druid.segment.realtime.appenderator;
 
-import io.druid.segment.QueryableIndex;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-import java.io.File;
+import io.druid.segment.indexing.DataSchema;
+import io.druid.segment.indexing.RealtimeTuningConfig;
+import io.druid.segment.realtime.FireDepartmentMetrics;
 
-/**
- */
-public interface QueryableIndexFactory
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "default", value = DefaultAppenderatorFactory.class)
+})
+public interface AppenderatorFactory
 {
-  public QueryableIndex factorize(File parentDir) throws SegmentLoadingException;
+  Appenderator build(
+      DataSchema schema,
+      RealtimeTuningConfig config,
+      FireDepartmentMetrics metrics
+  );
 }
