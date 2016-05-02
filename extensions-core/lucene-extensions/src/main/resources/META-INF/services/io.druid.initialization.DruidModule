@@ -1,1 +1,1 @@
-io.druid.lucene.LuceneDruidModule
+io.druid.segment.realtime.lucene.LuceneDruidModule
