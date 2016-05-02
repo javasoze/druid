@@ -16,20 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package io.druid.segment;
 
-import org.joda.time.Interval;
-
-import java.io.Closeable;
-
-/**
- */
-public interface Segment extends Closeable
+public abstract class AbstractSegment implements Segment
 {
-  public String getIdentifier();
-  public Interval getDataInterval();
-  public QueryableIndex asQueryableIndex();
-  public StorageAdapter asStorageAdapter();
-  public <T> T as(Class<T> clazz);
+  @Override
+  public <T> T as(Class<T> clazz)
+  {
+    if (clazz.equals(QueryableIndex.class)) {
+      return (T) asQueryableIndex();
+    } else if (clazz.equals(StorageAdapter.class)) {
+      return (T) asStorageAdapter();
+    }
+    return null;
+  }
 }
