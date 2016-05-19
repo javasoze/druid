@@ -19,6 +19,53 @@
 
 package io.druid.server.coordination;
 
+import io.druid.client.cache.CacheConfig;
+import io.druid.client.cache.LocalCacheProvider;
+import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.QueryGranularity;
+import io.druid.jackson.DefaultObjectMapper;
+import io.druid.query.ConcatQueryRunner;
+import io.druid.query.Druids;
+import io.druid.query.NoopQueryRunner;
+import io.druid.query.Query;
+import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunnerFactory;
+import io.druid.query.QueryRunnerFactoryConglomerate;
+import io.druid.query.QueryToolChest;
+import io.druid.query.Result;
+import io.druid.query.aggregation.MetricManipulationFn;
+import io.druid.query.search.SearchResultValue;
+import io.druid.query.search.search.SearchQuery;
+import io.druid.segment.AbstractSegment;
+import io.druid.segment.IndexIO;
+import io.druid.segment.QueryableIndex;
+import io.druid.segment.ReferenceCountingSegment;
+import io.druid.segment.Segment;
+import io.druid.segment.StorageAdapter;
+import io.druid.segment.loading.SegmentLoader;
+import io.druid.segment.loading.SegmentLoadingException;
+import io.druid.server.metrics.NoopServiceEmitter;
+import io.druid.timeline.DataSegment;
+import io.druid.timeline.partition.NoneShardSpec;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
+import org.joda.time.Interval;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
@@ -37,50 +84,6 @@ import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.common.guava.YieldingSequenceBase;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.client.cache.CacheConfig;
-import io.druid.client.cache.LocalCacheProvider;
-import io.druid.granularity.QueryGranularity;
-import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
-import io.druid.query.ConcatQueryRunner;
-import io.druid.query.Druids;
-import io.druid.query.NoopQueryRunner;
-import io.druid.query.Query;
-import io.druid.query.QueryRunner;
-import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryRunnerFactoryConglomerate;
-import io.druid.query.QueryToolChest;
-import io.druid.query.Result;
-import io.druid.query.aggregation.MetricManipulationFn;
-import io.druid.query.search.SearchResultValue;
-import io.druid.query.search.search.SearchQuery;
-import io.druid.segment.IndexIO;
-import io.druid.segment.QueryableIndex;
-import io.druid.segment.ReferenceCountingSegment;
-import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
-import io.druid.segment.loading.SegmentLoader;
-import io.druid.segment.loading.SegmentLoadingException;
-import io.druid.server.metrics.NoopServiceEmitter;
-import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
-import org.joda.time.Interval;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 /**
  */
@@ -592,7 +595,7 @@ public class ServerManagerTest
     }
   }
 
-  private static class SegmentForTesting implements Segment
+  private static class SegmentForTesting extends AbstractSegment
   {
     private final String version;
     private final Interval interval;

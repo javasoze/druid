@@ -19,18 +19,21 @@
 
 package io.druid.segment.loading;
 
-import com.metamx.common.MapUtils;
+import io.druid.segment.AbstractSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.timeline.DataSegment;
-import org.joda.time.Interval;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import org.joda.time.Interval;
+
+import com.metamx.common.MapUtils;
 
 /**
 */
@@ -49,7 +52,7 @@ public class CacheTestSegmentLoader implements SegmentLoader
   @Override
   public Segment getSegment(final DataSegment segment) throws SegmentLoadingException
   {
-    return new Segment()
+    return new AbstractSegment()
     {
       @Override
       public String getIdentifier()
