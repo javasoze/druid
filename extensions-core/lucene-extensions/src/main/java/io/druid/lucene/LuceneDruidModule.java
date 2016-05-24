@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.segment.realtime.lucene;
+package io.druid.lucene;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
@@ -28,6 +28,9 @@ import com.google.inject.Binder;
 import io.druid.guice.DruidBinders;
 import io.druid.guice.LazySingleton;
 import io.druid.initialization.DruidModule;
+import io.druid.lucene.query.LuceneDruidQuery;
+import io.druid.lucene.query.LuceneQueryRunnerFactory;
+import io.druid.lucene.query.LuceneQueryToolChest;
 import io.druid.segment.realtime.appenderator.AppenderatorPlumberSchool;
 
 import java.util.List;

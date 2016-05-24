@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.segment.realtime.lucene;
+package io.druid.lucene.query;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
@@ -25,6 +25,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.EmittingLogger;
 
+import io.druid.lucene.LuceneDirectory;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -62,7 +63,7 @@ public class LuceneQueryRunnerFactory
   @Override
   public QueryRunner<Result<LuceneQueryResultValue>> createRunner(final Segment segment)
   {
-    return new LuceneQueryRunner((LuceneDruidSegment) segment);
+    return new LuceneQueryRunner(segment);
   }
 
   @Override
@@ -86,9 +87,9 @@ public class LuceneQueryRunnerFactory
 
   private static class LuceneQueryRunner implements QueryRunner<Result<LuceneQueryResultValue>>
   {
-    private final LuceneDruidSegment segment;
+    private final Segment segment;
 
-    public LuceneQueryRunner(LuceneDruidSegment segment)
+    public LuceneQueryRunner(Segment segment)
     {
       this.segment = segment;
     }
@@ -102,19 +103,20 @@ public class LuceneQueryRunnerFactory
       log.info("here... handling run");
       LuceneDruidQuery luceneDruidQuery = (LuceneDruidQuery) query;
       long numHits = 0;
-      long totalDocs = segment.numRows();
+      LuceneDirectory directory = segment.as(LuceneDirectory.class);
+      long totalDocs = directory.numRows();
       String queryString = luceneDruidQuery.getQueryString();
       log.info("query string: " + queryString);
       Analyzer analyzer = new StandardAnalyzer();
       QueryParser parser = new QueryParser(luceneDruidQuery.getDefaultField(), analyzer);
-      try (IndexReader reader = segment.getIndexReader()) {
+      try (IndexReader reader = directory.getIndexReader()) {
         if (reader != null) {
           log.info("we have a reader to search with " + reader.numDocs() +" docs");
-          org.apache.lucene.search.Query luceneQuery = (queryString == null || "*".equals(queryString)) ? 
+          org.apache.lucene.search.Query luceneQuery = (queryString == null || "*".equals(queryString)) ?
               new MatchAllDocsQuery() :
               parser.parse(queryString);
           log.info("lucene query: " + luceneQuery);
-          IndexSearcher searcher = new IndexSearcher(reader);        
+          IndexSearcher searcher = new IndexSearcher(reader);
           TopDocs td = searcher.search(luceneQuery, luceneDruidQuery.getCount());
           numHits = td.totalHits;
         }

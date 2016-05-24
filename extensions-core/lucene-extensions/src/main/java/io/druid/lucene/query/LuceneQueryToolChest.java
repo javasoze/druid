@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.segment.realtime.lucene;
+package io.druid.lucene.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
