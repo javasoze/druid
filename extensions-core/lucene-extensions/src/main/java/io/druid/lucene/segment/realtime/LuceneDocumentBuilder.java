@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.druid.segment.realtime.lucene;
+package io.druid.lucene.segment.realtime;
 
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DimensionSchema;

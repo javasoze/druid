@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.druid.segment.realtime.lucene;
+package io.druid.lucene.segment.realtime;
 
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
@@ -76,8 +76,8 @@ public class LuceneAppenderator implements Appenderator, Runnable
   private final ExecutorService queryExecutorService;
   private final Thread indexRefresher;
   private volatile boolean isClosed = false;
-  private final Map<SegmentIdentifier, LuceneDruidSegment> segments = Maps.newHashMap();
-  private final VersionedIntervalTimeline<String, LuceneDruidSegment> timeline = new VersionedIntervalTimeline<>(
+  private final Map<SegmentIdentifier, RealtimeDirectory> segments = Maps.newHashMap();
+  private final VersionedIntervalTimeline<String, RealtimeDirectory> timeline = new VersionedIntervalTimeline<>(
       Ordering.natural()
   );
   
@@ -113,28 +113,28 @@ public class LuceneAppenderator implements Appenderator, Runnable
         FunctionalIterable
             .create(intervals)
             .transformCat(
-                new Function<Interval, Iterable<TimelineObjectHolder<String, LuceneDruidSegment>>>()
+                new Function<Interval, Iterable<TimelineObjectHolder<String, RealtimeDirectory>>>()
                 {
                   @Override
-                  public Iterable<TimelineObjectHolder<String, LuceneDruidSegment>> apply(final Interval interval)
+                  public Iterable<TimelineObjectHolder<String, RealtimeDirectory>> apply(final Interval interval)
                   {
                     return timeline.lookup(interval);
                   }
                 }
             )
             .transformCat(
-                new Function<TimelineObjectHolder<String, LuceneDruidSegment>, Iterable<SegmentDescriptor>>()
+                new Function<TimelineObjectHolder<String, RealtimeDirectory>, Iterable<SegmentDescriptor>>()
                 {
                   @Override
-                  public Iterable<SegmentDescriptor> apply(final TimelineObjectHolder<String, LuceneDruidSegment> holder)
+                  public Iterable<SegmentDescriptor> apply(final TimelineObjectHolder<String, RealtimeDirectory> holder)
                   {
                     return FunctionalIterable
                         .create(holder.getObject())
                         .transform(
-                            new Function<PartitionChunk<LuceneDruidSegment>, SegmentDescriptor>()
+                            new Function<PartitionChunk<RealtimeDirectory>, SegmentDescriptor>()
                             {
                               @Override
-                              public SegmentDescriptor apply(final PartitionChunk<LuceneDruidSegment> chunk)
+                              public SegmentDescriptor apply(final PartitionChunk<RealtimeDirectory> chunk)
                               {
                                 return new SegmentDescriptor(
                                     holder.getInterval(),
@@ -184,7 +184,7 @@ public class LuceneAppenderator implements Appenderator, Runnable
                       @Override
                       public QueryRunner<T> apply(final SegmentDescriptor descriptor)
                       {
-                        final PartitionHolder<LuceneDruidSegment> holder = timeline.findEntry(
+                        final PartitionHolder<RealtimeDirectory> holder = timeline.findEntry(
                             descriptor.getInterval(),
                             descriptor.getVersion()
                         );
@@ -192,18 +192,18 @@ public class LuceneAppenderator implements Appenderator, Runnable
                           return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
                         }
 
-                        final PartitionChunk<LuceneDruidSegment> chunk = holder.getChunk(descriptor.getPartitionNumber());
+                        final PartitionChunk<RealtimeDirectory> chunk = holder.getChunk(descriptor.getPartitionNumber());
                         if (chunk == null) {
                           return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
                         }
 
-                        final LuceneDruidSegment segment = chunk.getObject();
+                        final RealtimeDirectory segment = chunk.getObject();
 
                         return new SpecificSegmentQueryRunner<>(
                             new BySegmentQueryRunner<>(
-                                segment.getIdentifier(),
+                                segment.getIdentifier().getIdentifierAsString(),
                                 descriptor.getInterval().getStart(),
-                                factory.createRunner(segment)
+                                factory.createRunner(new LuceneIncrementalSegment(segment))
                             ),
                             new SpecificSegmentSpec(descriptor)
                         );
@@ -224,19 +224,19 @@ public class LuceneAppenderator implements Appenderator, Runnable
   public int add(SegmentIdentifier identifier, InputRow row,
       Supplier<Committer> committerSupplier) throws IndexSizeExceededException,
       SegmentNotWritableException {
-    LuceneDruidSegment segment = segments.get(identifier);
-    
+    RealtimeDirectory segment = segments.get(identifier);
+
     try {
-      if (segment == null) {      
-        segment = new LuceneDruidSegment(identifier, realtimeTuningConfig.getBasePersistDirectory(), 
-            docBuilder, realtimeTuningConfig.getMaxRowsInMemory());
+      if (segment == null) {
+        segment = new RealtimeDirectory(identifier, realtimeTuningConfig.getBasePersistDirectory(),
+                docBuilder, realtimeTuningConfig.getMaxRowsInMemory());
         segments.put(identifier, segment);
         timeline.add(
-            identifier.getInterval(),
-            identifier.getVersion(),
-            identifier.getShardSpec().createChunk(segment)
+                identifier.getInterval(),
+                identifier.getVersion(),
+                identifier.getShardSpec().createChunk(segment)
         );
-      } 
+      }
       segment.add(row);
       return segment.numRows();
     } catch (IOException ioe) {
@@ -252,13 +252,13 @@ public class LuceneAppenderator implements Appenderator, Runnable
 
   @Override
   public int getRowCount(SegmentIdentifier identifier) {
-    LuceneDruidSegment segment = segments.get(identifier);
+    RealtimeDirectory segment = segments.get(identifier);
     return segment == null ? 0 : segment.numRows();
   }
 
   @Override
   public void clear() throws InterruptedException {
-    for (Map.Entry<SegmentIdentifier, LuceneDruidSegment> entry : segments.entrySet()) {
+    for (Map.Entry<SegmentIdentifier, RealtimeDirectory> entry : segments.entrySet()) {
       timeline.remove(
           entry.getKey().getInterval(),
           entry.getKey().getVersion(),
@@ -276,7 +276,7 @@ public class LuceneAppenderator implements Appenderator, Runnable
   @Override
   public ListenableFuture<?> drop(SegmentIdentifier identifier)
   {
-    final LuceneDruidSegment segment = segments.get(identifier);
+    final RealtimeDirectory segment = segments.get(identifier);
     if (segment != null) {
       timeline.remove(
           identifier.getInterval(),
@@ -296,7 +296,7 @@ public class LuceneAppenderator implements Appenderator, Runnable
   @Override
   public ListenableFuture<Object> persistAll(Committer committer)
   {
-    for (LuceneDruidSegment segment : segments.values()) {
+    for (RealtimeDirectory segment : segments.values()) {
       try {
         segment.persist();
       } catch (IOException e) {
@@ -336,7 +336,7 @@ public class LuceneAppenderator implements Appenderator, Runnable
   public void run() {
     while(!isClosed) {
       log.info("refresh index segments");
-      for (LuceneDruidSegment segment : segments.values()) {
+      for (RealtimeDirectory segment : segments.values()) {
         try {
           segment.refreshRealtimeReader();
         } catch (IOException e) {

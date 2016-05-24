@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.segment.realtime.lucene;
+package io.druid.lucene.segment.realtime;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;

@@ -19,13 +19,14 @@
 
 package io.druid.segment.loading;
 
-import io.druid.segment.QueryableIndex;
+import io.druid.segment.Segment;
+import org.joda.time.Interval;
 
 import java.io.File;
 
 /**
  */
-public interface QueryableIndexFactory
+public interface QueryableSegmentFactory
 {
-  public QueryableIndex factorize(File parentDir) throws SegmentLoadingException;
+  public Segment factorize(String segmentIdentifier, Interval interval, File parentDir) throws SegmentLoadingException;
 }

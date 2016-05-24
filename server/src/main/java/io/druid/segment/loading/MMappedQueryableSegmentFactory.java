@@ -23,30 +23,32 @@ import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 import com.metamx.common.logger.Logger;
 import io.druid.segment.IndexIO;
-import io.druid.segment.QueryableIndex;
+import io.druid.segment.QueryableIndexSegment;
+import io.druid.segment.Segment;
+import org.joda.time.Interval;
 
 import java.io.File;
 import java.io.IOException;
 
 /**
  */
-public class MMappedQueryableIndexFactory implements QueryableIndexFactory
+public class MMappedQueryableSegmentFactory implements QueryableSegmentFactory
 {
-  private static final Logger log = new Logger(MMappedQueryableIndexFactory.class);
+  private static final Logger log = new Logger(MMappedQueryableSegmentFactory.class);
 
   private final IndexIO indexIO;
 
   @Inject
-  public MMappedQueryableIndexFactory(IndexIO indexIO)
+  public MMappedQueryableSegmentFactory(IndexIO indexIO)
   {
     this.indexIO = Preconditions.checkNotNull(indexIO, "Null IndexIO");
   }
 
   @Override
-  public QueryableIndex factorize(File parentDir) throws SegmentLoadingException
+  public Segment factorize(String segmentIdentifier, Interval interval, File parentDir) throws SegmentLoadingException
   {
     try {
-      return indexIO.loadIndex(parentDir);
+      return new QueryableIndexSegment(segmentIdentifier, indexIO.loadIndex(parentDir));
     }
     catch (IOException e) {
       throw new SegmentLoadingException(e, "%s", e.getMessage());
