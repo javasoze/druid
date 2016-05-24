@@ -76,7 +76,7 @@ public class LuceneAppenderator implements Appenderator, Runnable
   private final ExecutorService queryExecutorService;
   private final Thread indexRefresher;
   private volatile boolean isClosed = false;
-  private final Map<SegmentIdentifier, RealtimeDirectory> segments = Maps.newHashMap();
+  private final Map<SegmentIdentifier, RealtimeDirectory> directories = Maps.newHashMap();
   private final VersionedIntervalTimeline<String, RealtimeDirectory> timeline = new VersionedIntervalTimeline<>(
       Ordering.natural()
   );
@@ -197,13 +197,13 @@ public class LuceneAppenderator implements Appenderator, Runnable
                           return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
                         }
 
-                        final RealtimeDirectory segment = chunk.getObject();
+                        final RealtimeDirectory directory = chunk.getObject();
 
                         return new SpecificSegmentQueryRunner<>(
                             new BySegmentQueryRunner<>(
-                                segment.getIdentifier().getIdentifierAsString(),
+                                directory.getIdentifier().getIdentifierAsString(),
                                 descriptor.getInterval().getStart(),
-                                factory.createRunner(new LuceneIncrementalSegment(segment))
+                                factory.createRunner(new LuceneIncrementalSegment(directory))
                             ),
                             new SpecificSegmentSpec(descriptor)
                         );
@@ -224,21 +224,21 @@ public class LuceneAppenderator implements Appenderator, Runnable
   public int add(SegmentIdentifier identifier, InputRow row,
       Supplier<Committer> committerSupplier) throws IndexSizeExceededException,
       SegmentNotWritableException {
-    RealtimeDirectory segment = segments.get(identifier);
+    RealtimeDirectory directory = directories.get(identifier);
 
     try {
-      if (segment == null) {
-        segment = new RealtimeDirectory(identifier, realtimeTuningConfig.getBasePersistDirectory(),
+      if (directory == null) {
+        directory = new RealtimeDirectory(identifier, realtimeTuningConfig.getBasePersistDirectory(),
                 docBuilder, realtimeTuningConfig.getMaxRowsInMemory());
-        segments.put(identifier, segment);
+        directories.put(identifier, directory);
         timeline.add(
                 identifier.getInterval(),
                 identifier.getVersion(),
-                identifier.getShardSpec().createChunk(segment)
+                identifier.getShardSpec().createChunk(directory)
         );
       }
-      segment.add(row);
-      return segment.numRows();
+      directory.add(row);
+      return directory.numRows();
     } catch (IOException ioe) {
       ioe.printStackTrace();
       throw new SegmentNotWritableException(ioe.getMessage(), ioe);
@@ -247,18 +247,18 @@ public class LuceneAppenderator implements Appenderator, Runnable
 
   @Override
   public List<SegmentIdentifier> getSegments() {
-    return ImmutableList.copyOf(segments.keySet());
+    return ImmutableList.copyOf(directories.keySet());
   }
 
   @Override
   public int getRowCount(SegmentIdentifier identifier) {
-    RealtimeDirectory segment = segments.get(identifier);
-    return segment == null ? 0 : segment.numRows();
+    RealtimeDirectory directory = directories.get(identifier);
+    return directory == null ? 0 : directory.numRows();
   }
 
   @Override
   public void clear() throws InterruptedException {
-    for (Map.Entry<SegmentIdentifier, RealtimeDirectory> entry : segments.entrySet()) {
+    for (Map.Entry<SegmentIdentifier, RealtimeDirectory> entry : directories.entrySet()) {
       timeline.remove(
           entry.getKey().getInterval(),
           entry.getKey().getVersion(),
@@ -270,22 +270,22 @@ public class LuceneAppenderator implements Appenderator, Runnable
         log.error(e.getMessage(), e);
       }
     }
-    segments.clear();
+    directories.clear();
   }
 
   @Override
   public ListenableFuture<?> drop(SegmentIdentifier identifier)
   {
-    final RealtimeDirectory segment = segments.get(identifier);
-    if (segment != null) {
+    final RealtimeDirectory directory = directories.get(identifier);
+    if (directory != null) {
       timeline.remove(
           identifier.getInterval(),
           identifier.getVersion(),
-          identifier.getShardSpec().createChunk(segment)
+          identifier.getShardSpec().createChunk(directory)
       );
-      segments.remove(identifier);
+      directories.remove(identifier);
       try {
-        segment.close();
+        directory.close();
       } catch (IOException e) {
         log.error(e.getMessage(), e);
       }
@@ -296,9 +296,9 @@ public class LuceneAppenderator implements Appenderator, Runnable
   @Override
   public ListenableFuture<Object> persistAll(Committer committer)
   {
-    for (RealtimeDirectory segment : segments.values()) {
+    for (RealtimeDirectory directory : directories.values()) {
       try {
-        segment.persist();
+        directory.persist();
       } catch (IOException e) {
         log.error(e.getMessage(), e);
       }
@@ -336,9 +336,9 @@ public class LuceneAppenderator implements Appenderator, Runnable
   public void run() {
     while(!isClosed) {
       log.info("refresh index segments");
-      for (RealtimeDirectory segment : segments.values()) {
+      for (RealtimeDirectory directory : directories.values()) {
         try {
-          segment.refreshRealtimeReader();
+          directory.refreshRealtimeReader();
         } catch (IOException e) {
           log.error(e.getMessage(), e);
         }
