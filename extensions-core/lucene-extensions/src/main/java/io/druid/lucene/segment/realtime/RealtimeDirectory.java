@@ -1,10 +1,29 @@
+/*
+ * Druid - a distributed column store.
+ * Copyright 2012 - 2015 Metamarkets Group Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.druid.lucene.segment.realtime;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.data.input.InputRow;
 import io.druid.lucene.LuceneDirectory;
 import io.druid.lucene.segment.realtime.LuceneDocumentBuilder;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
+import io.druid.timeline.DataSegment;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -35,6 +54,7 @@ public class RealtimeDirectory implements LuceneDirectory {
     private volatile boolean isOpen;
     private final Object refreshLock = new Object();
     private ConcurrentLinkedQueue<DirectoryReader> persistedReaders = new ConcurrentLinkedQueue<DirectoryReader>();
+    private volatile boolean writable = true;
 
     private static IndexWriter buildRamWriter(
             RAMDirectory dir, Analyzer analyzer, int maxDocsPerSegment) throws IOException {
@@ -43,7 +63,7 @@ public class RealtimeDirectory implements LuceneDirectory {
         // some arbitrary large numbers
         writerConfig.setMaxBufferedDocs(maxDocsPerSegment * 2);
         writerConfig.setRAMBufferSizeMB(5000);
-        writerConfig.setUseCompoundFile(false);
+        writerConfig.setUseCompoundFile(true);
         writerConfig.setCommitOnClose(true);
         writerConfig.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
         writerConfig.setMergePolicy(NoMergePolicy.INSTANCE);
@@ -53,7 +73,7 @@ public class RealtimeDirectory implements LuceneDirectory {
 
     private static IndexWriter buildPersistWriter(Directory dir) throws IOException {
         IndexWriterConfig writerConfig = new IndexWriterConfig(null);
-        writerConfig.setUseCompoundFile(false);
+        writerConfig.setUseCompoundFile(true);
         writerConfig.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
         writerConfig.setMergePolicy(NoMergePolicy.INSTANCE);
         writerConfig.setMergeScheduler(NoMergeScheduler.INSTANCE);
@@ -64,14 +84,20 @@ public class RealtimeDirectory implements LuceneDirectory {
         return new File(basePersistDir, UUID.randomUUID().toString());
     }
 
+    private File computePersistDir(File basePersistDir, SegmentIdentifier identifier)
+    {
+        return new File(basePersistDir, identifier.getIdentifierAsString());
+    }
+
     public RealtimeDirectory(SegmentIdentifier segmentIdentifier, File basePersistDir,
                               LuceneDocumentBuilder docBuilder, int maxDocsPerSegment) throws IOException {
         this.segmentIdentifier = segmentIdentifier;
-        this.persistDir = new File(basePersistDir, segmentIdentifier.getIdentifierAsString());
         this.docBuilder = docBuilder;
         this.maxRowsPerSegment = maxDocsPerSegment;
         this.numRowsPersisted = 0;
         this.isOpen = true;
+        persistDir = computePersistDir(basePersistDir, segmentIdentifier);
+        persistDir.mkdirs();
         reset();
     }
 
@@ -85,10 +111,15 @@ public class RealtimeDirectory implements LuceneDirectory {
         if (!isOpen) {
             return;
         }
+
+        numRowsAdded = 0;
         ramDir = new RAMDirectory();
         ramWriter = buildRamWriter(ramDir, new StandardAnalyzer(), maxRowsPerSegment);
-        numRowsAdded = 0;
+        DirectoryReader tmpReader = realtimeReader;
         realtimeReader = null;
+        if (tmpReader != null) {
+            tmpReader.close();
+        }
     }
 
     public void add(InputRow row) throws IOException {
@@ -96,9 +127,11 @@ public class RealtimeDirectory implements LuceneDirectory {
         Document doc = docBuilder.buildLuceneDocument(row);
         ramWriter.addDocument(doc);
         numRowsAdded++;
-        if (numRowsAdded >= maxRowsPerSegment) {
-            reset();
-        }
+    }
+
+    public boolean canAppendRow()
+    {
+        return writable && numRowsAdded < maxRowsPerSegment;
     }
 
     /**
@@ -137,24 +170,54 @@ public class RealtimeDirectory implements LuceneDirectory {
             try(IndexWriter persistWriter = buildPersistWriter(luceneDir)) {
                 ramWriter.commit();
                 ramWriter.close();
-                ramWriter = null;
                 persistWriter.addIndexes(ramDir);
                 persistWriter.commit();
                 persistWriter.close();
                 DirectoryReader reader = DirectoryReader.open(luceneDir);
                 numRowsPersisted += reader.numDocs();
                 persistedReaders.add(reader);
-                DirectoryReader tmpReader = realtimeReader;
-                realtimeReader = null;
-                if (tmpReader != null) {
-                    tmpReader.close();
-                }
+                reset();
             }
         }
     }
 
+    public File merge() throws IOException {
+        synchronized(refreshLock) {
+            final File mergedTarget = persistDir;
+            FSDirectory luceneDir = FSDirectory.open(mergedTarget.toPath());
+            try(IndexWriter persistWriter = buildPersistWriter(luceneDir)) {
+                for (DirectoryReader persistedReader : persistedReaders) {
+                    persistWriter.addIndexes(persistedReader.directory());
+                }
+//                persistWriter.merge();
+                persistWriter.commit();
+                persistWriter.close();
+                return mergedTarget;
+            }
+        }
+    }
+
+    public DataSegment getSegment()
+    {
+        return new DataSegment(
+                segmentIdentifier.getDataSource(),
+                segmentIdentifier.getInterval(),
+                segmentIdentifier.getVersion(),
+                ImmutableMap.<String, Object>of(),
+                Lists.<String>newArrayList(),
+                Lists.<String>newArrayList(),
+                segmentIdentifier.getShardSpec(),
+                null,
+                0
+        );
+    }
+
     public SegmentIdentifier getIdentifier() {
         return segmentIdentifier;
+    }
+
+    public File getPersistDir() {
+        return persistDir;
     }
 
     /**

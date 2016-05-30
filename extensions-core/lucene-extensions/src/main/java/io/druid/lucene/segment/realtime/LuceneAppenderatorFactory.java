@@ -22,29 +22,41 @@ package io.druid.lucene.segment.realtime;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.guice.annotations.Processing;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
+import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.segment.realtime.FireDepartmentMetrics;
 import io.druid.segment.realtime.appenderator.Appenderator;
 import io.druid.segment.realtime.appenderator.AppenderatorFactory;
+import io.druid.server.coordination.DataSegmentAnnouncer;
 
 import java.util.concurrent.ExecutorService;
 
 public class LuceneAppenderatorFactory implements AppenderatorFactory
 {
   private final QueryRunnerFactoryConglomerate conglomerate;
+  private final DataSegmentAnnouncer segmentAnnouncer;
   private final ExecutorService queryExecutorService;
+  private final DataSegmentPusher dataSegmentPusher;
+  private final ObjectMapper objectMapper;
 
   @JsonCreator
   public LuceneAppenderatorFactory(
+      @JacksonInject DataSegmentAnnouncer segmentAnnouncer,
       @JacksonInject QueryRunnerFactoryConglomerate conglomerate,
-      @JacksonInject @Processing ExecutorService queryExecutorService
+      @JacksonInject @Processing ExecutorService queryExecutorService,
+      @JacksonInject DataSegmentPusher dataSegmentPusher,
+      @JacksonInject ObjectMapper objectMapper
   )
   {
+    this.segmentAnnouncer = segmentAnnouncer;
     this.conglomerate = conglomerate;
     this.queryExecutorService = queryExecutorService;
+    this.dataSegmentPusher = dataSegmentPusher;
+    this.objectMapper = objectMapper;
   }
 
   @Override
@@ -54,6 +66,14 @@ public class LuceneAppenderatorFactory implements AppenderatorFactory
       FireDepartmentMetrics metrics
   )
   {
-    return new LuceneAppenderator(schema, config, conglomerate, queryExecutorService);
+    return new LuceneAppenderator(
+            schema,
+            config,
+            dataSegmentPusher,
+            objectMapper,
+            conglomerate,
+            segmentAnnouncer,
+            queryExecutorService
+    );
   }
 }

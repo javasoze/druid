@@ -31,8 +31,8 @@ public class LuceneQueryResultValue
 
   @JsonCreator
   public LuceneQueryResultValue(
-      @JsonProperty("size") long size,
-      @JsonProperty("count") long count
+      @JsonProperty("count") long count,
+      @JsonProperty("size") long size
   )
   {
     this.size = size;

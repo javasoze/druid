@@ -75,8 +75,9 @@ public class LuceneQueryToolChest
             } else {
               return new Result<>(
                   JodaUtils.minDateTime(result1.getTimestamp(), result2.getTimestamp()),
-                  new LuceneQueryResultValue(result1.getValue().getSize() + result1.getValue().getSize(),
-                      result1.getValue().getCount() + result2.getValue().getCount())
+                  new LuceneQueryResultValue(result1.getValue().getCount() + result2.getValue().getCount(),
+                          result1.getValue().getSize() + result2.getValue().getSize()
+                      )
               );
             }
           }
