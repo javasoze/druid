@@ -25,8 +25,6 @@ import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import io.druid.guice.annotations.Json;
-import io.druid.segment.QueryableIndex;
-import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
@@ -42,7 +40,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
 {
   private static final Logger log = new Logger(SegmentLoaderLocalCacheManager.class);
 
-  private final QueryableIndexFactory factory;
+  private final QueryableSegmentFactory factory;
   private final SegmentLoaderConfig config;
   private final ObjectMapper jsonMapper;
 
@@ -52,7 +50,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
 
   @Inject
   public SegmentLoaderLocalCacheManager(
-      QueryableIndexFactory factory,
+      QueryableSegmentFactory factory,
       SegmentLoaderConfig config,
       @Json ObjectMapper mapper
   )
@@ -93,9 +91,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   public Segment getSegment(DataSegment segment) throws SegmentLoadingException
   {
     File segmentFiles = getSegmentFiles(segment);
-    final QueryableIndex index = factory.factorize(segmentFiles);
-
-    return new QueryableIndexSegment(segment.getIdentifier(), index);
+    return factory.factorize(segment.getIdentifier(), segment.getInterval(), segmentFiles);
   }
 
   @Override
