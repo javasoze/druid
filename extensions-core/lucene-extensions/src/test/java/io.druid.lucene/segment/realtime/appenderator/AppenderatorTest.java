@@ -75,7 +75,6 @@ public class AppenderatorTest {
     {
         try (final AppenderatorTester tester = new AppenderatorTester(2)) {
             final Appenderator appenderator = tester.getAppenderator();
-            boolean thrown;
 
             final ConcurrentMap<String, String> commitMetadata = new ConcurrentHashMap<>();
             final Supplier<Committer> committerSupplier = committerSupplierFromConcurrentMap(commitMetadata);
@@ -87,194 +86,73 @@ public class AppenderatorTest {
             Assert.assertEquals(AppenderatorTester.DATASOURCE, appenderator.getDataSource());
 
             // add
-            commitMetadata.put("x", "1");
             appenderator.add(IDENTIFIERS.get(0), IR("2000", "foo", 1), committerSupplier);
-//            Assert.assertEquals(1, appenderator.add(IDENTIFIERS.get(0), IR("2000", "foo", 1), committerSupplier));
 
-            commitMetadata.put("x", "2");
-            appenderator.add(IDENTIFIERS.get(0), IR("2000", "bar", 2), committerSupplier);
-//            Assert.assertEquals(2, appenderator.add(IDENTIFIERS.get(0), IR("2000", "bar", 2), committerSupplier));
+            // make sure refresh finished
+            Thread.sleep(5000L);
 
-            commitMetadata.put("x", "3");
+            Assert.assertEquals(1, appenderator.getRowCount(IDENTIFIERS.get(0)));
+
             appenderator.add(IDENTIFIERS.get(1), IR("2000", "qux", 4), committerSupplier);
 
             appenderator.persistAll(committerSupplier.get());
 
-            Thread.sleep(1000000);
+            // make sure persist finished
+            Thread.sleep(1000L);
 
-//            Assert.assertEquals(1, appenderator.add(IDENTIFIERS.get(1), IR("2000", "qux", 4), committerSupplier));
+            Assert.assertEquals(1, appenderator.getRowCount(IDENTIFIERS.get(1)));
 
-//            // getSegments
-//            Assert.assertEquals(IDENTIFIERS.subList(0, 2), sorted(appenderator.getSegments()));
-//
-//            // getRowCount
-//            Assert.assertEquals(2, appenderator.getRowCount(IDENTIFIERS.get(0)));
-//            Assert.assertEquals(1, appenderator.getRowCount(IDENTIFIERS.get(1)));
-//            thrown = false;
-//            try {
-//                appenderator.getRowCount(IDENTIFIERS.get(2));
-//            }
-//            catch (IllegalStateException e) {
-//                thrown = true;
-//            }
-//            Assert.assertTrue(thrown);
-//
-//            // push all
-//            final SegmentsAndMetadata segmentsAndMetadata = appenderator.push(
-//                    appenderator.getSegments(),
-//                    committerSupplier.get()
-//            ).get();
-//            Assert.assertEquals(ImmutableMap.of("x", "3"), (Map<String, String>) segmentsAndMetadata.getCommitMetadata());
-//            Assert.assertEquals(
-//                    IDENTIFIERS.subList(0, 2),
-//                    sorted(
-//                            Lists.transform(
-//                                    segmentsAndMetadata.getSegments(),
-//                                    new Function<DataSegment, SegmentIdentifier>()
-//                                    {
-//                                        @Override
-//                                        public SegmentIdentifier apply(DataSegment input)
-//                                        {
-//                                            return SegmentIdentifier.fromDataSegment(input);
-//                                        }
-//                                    }
-//                            )
-//                    )
-//            );
-//            Assert.assertEquals(sorted(tester.getPushedSegments()), sorted(segmentsAndMetadata.getSegments()));
-//
-//            // clear
-//            appenderator.clear();
-//            Assert.assertTrue(appenderator.getSegments().isEmpty());
+
+            final SegmentsAndMetadata segmentsAndMetadata = appenderator.push(
+                    appenderator.getSegments(),
+                    committerSupplier.get()
+            ).get();
+
+            // clear
+            appenderator.clear();
+            Assert.assertTrue(appenderator.getSegments().isEmpty());
         }
     }
 
 
     @Test
-    public void testQueryByIntervals() throws Exception
+    public void testQuery() throws Exception
     {
         try (final AppenderatorTester tester = new AppenderatorTester(2)) {
             final Appenderator appenderator = tester.getAppenderator();
 
             appenderator.startJob();
             appenderator.add(IDENTIFIERS.get(0), IR("2000", "foo", 1), Suppliers.ofInstance(Committers.nil()));
-            appenderator.add(IDENTIFIERS.get(0), IR("2000", "foo", 2), Suppliers.ofInstance(Committers.nil()));
-            appenderator.add(IDENTIFIERS.get(1), IR("2000", "foo", 4), Suppliers.ofInstance(Committers.nil()));
+            appenderator.add(IDENTIFIERS.get(0), IR("2000", "bar", 2), Suppliers.ofInstance(Committers.nil()));
+            appenderator.add(IDENTIFIERS.get(1), IR("2000", "bar", 4), Suppliers.ofInstance(Committers.nil()));
             appenderator.add(IDENTIFIERS.get(2), IR("2001", "foo", 8), Suppliers.ofInstance(Committers.nil()));
             appenderator.add(IDENTIFIERS.get(2), IR("2001T01", "foo", 16), Suppliers.ofInstance(Committers.nil()));
             appenderator.add(IDENTIFIERS.get(2), IR("2001T02", "foo", 32), Suppliers.ofInstance(Committers.nil()));
 
-            // Query1: 2000/2001
+            // Query1: foo/bar
             final LuceneDruidQuery query1 = new LuceneDruidQuery(
                     new TableDataSource(AppenderatorTester.DATASOURCE),
                     new LegacySegmentSpec(ImmutableList.of(new Interval("2000/2002"))),
                     null,
-                    "foo",
                     "dim",
+                    "bar",
                     1
             );
 
             final List<Result<LuceneQueryResultValue>> results1 = Lists.newArrayList();
             Sequences.toList(query1.run(appenderator, ImmutableMap.<String, Object>of()), results1);
-//            Assert.assertEquals(
-//                    "query1",
-//                    ImmutableList.of(
-//                            new Result<>(
-//                                    new DateTime("2000"),
-//                                    new TimeseriesResultValue(ImmutableMap.<String, Object>of("count", 3L, "met", 7L))
-//                            )
-//                    ),
-//                    results1
-//            );
-            System.out.println(results1);
-
-        }
-    }
-
-    @Test
-    public void testQueryBySegments() throws Exception
-    {
-        try (final AppenderatorTester tester = new AppenderatorTester(2)) {
-            final Appenderator appenderator = tester.getAppenderator();
-
-            appenderator.startJob();
-            appenderator.add(IDENTIFIERS.get(0), IR("2000", "foo", 1), Suppliers.ofInstance(Committers.nil()));
-            appenderator.add(IDENTIFIERS.get(0), IR("2000", "foo", 2), Suppliers.ofInstance(Committers.nil()));
-            appenderator.add(IDENTIFIERS.get(1), IR("2000", "foo", 4), Suppliers.ofInstance(Committers.nil()));
-            appenderator.add(IDENTIFIERS.get(2), IR("2001", "foo", 8), Suppliers.ofInstance(Committers.nil()));
-            appenderator.add(IDENTIFIERS.get(2), IR("2001T01", "foo", 16), Suppliers.ofInstance(Committers.nil()));
-
-            // Query1: segment #2
-            final TimeseriesQuery query1 = Druids.newTimeseriesQueryBuilder()
-                    .dataSource(AppenderatorTester.DATASOURCE)
-                    .aggregators(
-                            Arrays.<AggregatorFactory>asList(
-                                    new LongSumAggregatorFactory("count", "count"),
-                                    new LongSumAggregatorFactory("met", "met")
-                            )
-                    )
-                    .granularity(QueryGranularities.DAY)
-                    .intervals(
-                            new MultipleSpecificSegmentSpec(
-                                    ImmutableList.of(
-                                            new SegmentDescriptor(
-                                                    IDENTIFIERS.get(2).getInterval(),
-                                                    IDENTIFIERS.get(2).getVersion(),
-                                                    IDENTIFIERS.get(2).getShardSpec().getPartitionNum()
-                                            )
-                                    )
-                            )
-                    )
-                    .build();
-
-            final List<Result<TimeseriesResultValue>> results1 = Lists.newArrayList();
-            Sequences.toList(query1.run(appenderator, ImmutableMap.<String, Object>of()), results1);
             Assert.assertEquals(
                     "query1",
                     ImmutableList.of(
                             new Result<>(
-                                    new DateTime("2001"),
-                                    new TimeseriesResultValue(ImmutableMap.<String, Object>of("count", 2L, "met", 24L))
+                                    new DateTime("2000"),
+                                    new LuceneQueryResultValue(2, 6)
                             )
+
                     ),
                     results1
             );
 
-            // Query1: segment #2, partial
-            final TimeseriesQuery query2 = Druids.newTimeseriesQueryBuilder()
-                    .dataSource(AppenderatorTester.DATASOURCE)
-                    .aggregators(
-                            Arrays.<AggregatorFactory>asList(
-                                    new LongSumAggregatorFactory("count", "count"),
-                                    new LongSumAggregatorFactory("met", "met")
-                            )
-                    )
-                    .granularity(QueryGranularities.DAY)
-                    .intervals(
-                            new MultipleSpecificSegmentSpec(
-                                    ImmutableList.of(
-                                            new SegmentDescriptor(
-                                                    new Interval("2001/PT1H"),
-                                                    IDENTIFIERS.get(2).getVersion(),
-                                                    IDENTIFIERS.get(2).getShardSpec().getPartitionNum()
-                                            )
-                                    )
-                            )
-                    )
-                    .build();
-
-            final List<Result<TimeseriesResultValue>> results2 = Lists.newArrayList();
-            Sequences.toList(query2.run(appenderator, ImmutableMap.<String, Object>of()), results2);
-            Assert.assertEquals(
-                    "query2",
-                    ImmutableList.of(
-                            new Result<>(
-                                    new DateTime("2001"),
-                                    new TimeseriesResultValue(ImmutableMap.<String, Object>of("count", 1L, "met", 8L))
-                            )
-                    ),
-                    results2
-            );
         }
     }
 
@@ -292,7 +170,7 @@ public class AppenderatorTest {
     {
         return new MapBasedInputRow(
                 new DateTime(ts).getMillis(),
-                ImmutableList.of("dim"),
+                ImmutableList.of("dim", "met"),
                 ImmutableMap.<String, Object>of(
                         "dim",
                         dim,

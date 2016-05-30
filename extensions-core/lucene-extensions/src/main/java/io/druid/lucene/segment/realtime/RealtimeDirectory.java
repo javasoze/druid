@@ -24,6 +24,7 @@ import io.druid.lucene.LuceneDirectory;
 import io.druid.lucene.segment.realtime.LuceneDocumentBuilder;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 import io.druid.timeline.DataSegment;
+import org.apache.commons.io.FileUtils;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -189,10 +190,28 @@ public class RealtimeDirectory implements LuceneDirectory {
                 for (DirectoryReader persistedReader : persistedReaders) {
                     persistWriter.addIndexes(persistedReader.directory());
                 }
-//                persistWriter.merge();
+                persistWriter.forceMerge(1);
                 persistWriter.commit();
                 persistWriter.close();
+                for (DirectoryReader persistedReader : persistedReaders) {
+                    persistedReader.close();
+                    removeDirectory(((FSDirectory)persistedReader.directory()).getDirectory().toFile());
+                }
+                persistedReaders.clear();
+                DirectoryReader reader = DirectoryReader.open(luceneDir);
+                persistedReaders.add(reader);
                 return mergedTarget;
+            }
+        }
+    }
+
+    private void removeDirectory(final File target)
+    {
+        if (target.exists()) {
+            try {
+                FileUtils.deleteDirectory(target);
+            }
+            catch (Exception e) {
             }
         }
     }
@@ -208,7 +227,7 @@ public class RealtimeDirectory implements LuceneDirectory {
                 Lists.<String>newArrayList(),
                 segmentIdentifier.getShardSpec(),
                 null,
-                0
+                numRows()
         );
     }
 
