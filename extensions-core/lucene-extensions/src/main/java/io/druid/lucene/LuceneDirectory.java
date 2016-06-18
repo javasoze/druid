@@ -19,15 +19,19 @@
 
 package io.druid.lucene;
 
+import io.druid.segment.column.ValueType;
 import org.apache.lucene.index.IndexReader;
 import java.io.IOException;
+import java.util.Map;
 
 /**
  */
 public interface LuceneDirectory {
-    public int numRows();
+    int numRows();
 
-    public IndexReader getIndexReader() throws IOException;
+    IndexReader getIndexReader() throws IOException;
 
-    public void close() throws IOException;
+    Map<String, ValueType> getFieldTypes();
+
+    void close() throws IOException;
 }

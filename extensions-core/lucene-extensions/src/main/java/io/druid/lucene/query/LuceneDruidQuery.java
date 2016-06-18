@@ -35,6 +35,7 @@ public class LuceneDruidQuery extends BaseQuery<Result<LuceneQueryResultValue>>
   public static final String TYPE = "lucene";
   private final String query;
   private final String defaultField;
+//  private final GroupBy groupBy;
   private final int count;
 
   @JsonCreator
@@ -44,6 +45,7 @@ public class LuceneDruidQuery extends BaseQuery<Result<LuceneQueryResultValue>>
       @JsonProperty("context") Map<String, Object> context,
       @JsonProperty("defaultField") String defaultField,
       @JsonProperty("query") String query,
+//      @JsonProperty("groupby") GroupBy groupby,
       @JsonProperty("count") int count
   )
   {
@@ -54,7 +56,8 @@ public class LuceneDruidQuery extends BaseQuery<Result<LuceneQueryResultValue>>
         context
     );
     this.defaultField = defaultField;
-    this.query = query;    
+    this.query = query;
+//    this.groupBy = groupby;
     this.count = count;
   }
   
@@ -69,6 +72,10 @@ public class LuceneDruidQuery extends BaseQuery<Result<LuceneQueryResultValue>>
   public String getQueryString() {
     return query;
   }
+
+//  public GroupBy getGroupBy() {
+//    return groupBy;
+//  }
 
   @Override
   public boolean hasFilters()

@@ -36,6 +36,7 @@ import io.druid.segment.Segment;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
@@ -109,6 +110,7 @@ public class LuceneQueryRunnerFactory
       log.info("query string: " + queryString);
       Analyzer analyzer = new StandardAnalyzer();
       QueryParser parser = new QueryParser(luceneDruidQuery.getDefaultField(), analyzer);
+
       try (IndexReader reader = directory.getIndexReader()) {
         if (reader != null) {
           log.info("we have a reader to search with " + reader.numDocs() +" docs");
@@ -117,8 +119,7 @@ public class LuceneQueryRunnerFactory
               parser.parse(queryString);
           log.info("lucene query: " + luceneQuery);
           IndexSearcher searcher = new IndexSearcher(reader);
-          TopDocs td = searcher.search(luceneQuery, luceneDruidQuery.getCount());
-          numHits = td.totalHits;
+          searcher.search(luceneQuery, 10);
         }
       } catch (Exception e) {
         log.error(e, e.getMessage());

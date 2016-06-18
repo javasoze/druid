@@ -19,12 +19,14 @@
 package io.druid.lucene.segment.loading;
 
 import io.druid.lucene.LuceneDirectory;
+import io.druid.segment.column.ValueType;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.store.FSDirectory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 
 /**
  */
@@ -47,7 +49,13 @@ public class ReadOnlyDirectory implements LuceneDirectory {
     }
 
     @Override
+    public Map<String, ValueType> getFieldTypes() {
+        return null;
+    }
+
+    @Override
     public void close() throws IOException {
         indexReader.close();
     }
+
 }

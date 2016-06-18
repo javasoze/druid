@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 import io.druid.data.input.InputRow;
 import io.druid.lucene.LuceneDirectory;
 import io.druid.lucene.segment.realtime.LuceneDocumentBuilder;
+import io.druid.segment.column.ValueType;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
@@ -37,6 +38,7 @@ import org.apache.lucene.store.RAMDirectory;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -238,6 +240,11 @@ public class RealtimeDirectory implements LuceneDirectory {
             readers.add(persistedReader);
         }
         return readers.isEmpty() ? null : new MultiReader(readers.toArray(new IndexReader[readers.size()]), false);
+    }
+
+    @Override
+    public Map<String, ValueType> getFieldTypes() {
+        return null;
     }
 
     @Override

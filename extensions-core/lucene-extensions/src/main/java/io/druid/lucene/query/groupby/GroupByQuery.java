@@ -1,0 +1,649 @@
+/*
+ * Licensed to Metamarkets Group Inc. (Metamarkets) under one
+ * or more contributor license agreements. See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. Metamarkets licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package io.druid.lucene.query.groupby;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
+import com.google.common.base.Functions;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.metamx.common.ISE;
+import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
+import io.druid.data.input.Row;
+import io.druid.granularity.QueryGranularity;
+import io.druid.query.*;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.groupby.having.HavingSpec;
+import io.druid.query.groupby.orderby.DefaultLimitSpec;
+import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.NoopLimitSpec;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.spec.LegacySegmentSpec;
+import io.druid.query.spec.QuerySegmentSpec;
+import org.joda.time.Interval;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ */
+public class GroupByQuery extends BaseQuery<Row>
+{
+  public static Builder builder()
+  {
+    return new Builder();
+  }
+
+  private final LimitSpec limitSpec;
+  private final HavingSpec havingSpec;
+  private final String query;
+  private final QueryGranularity granularity;
+  private final List<DimensionSpec> dimensions;
+  private final List<AggregatorFactory> aggregatorSpecs;
+  private final List<PostAggregator> postAggregatorSpecs;
+
+  private final Function<Sequence<Row>, Sequence<Row>> limitFn;
+
+  @JsonCreator
+  public GroupByQuery(
+      @JsonProperty("dataSource") DataSource dataSource,
+      @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
+      @JsonProperty("query") String query,
+      @JsonProperty("granularity") QueryGranularity granularity,
+      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
+      @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
+      @JsonProperty("postAggregations") List<PostAggregator> postAggregatorSpecs,
+      @JsonProperty("having") HavingSpec havingSpec,
+      @JsonProperty("limitSpec") LimitSpec limitSpec,
+      @JsonProperty("context") Map<String, Object> context
+  )
+  {
+    super(dataSource, querySegmentSpec, false, context);
+    this.query = query;
+    this.granularity = granularity;
+    this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
+    for (DimensionSpec spec : this.dimensions) {
+      Preconditions.checkArgument(spec != null, "dimensions has null DimensionSpec");
+    }
+    this.aggregatorSpecs = aggregatorSpecs;
+    this.postAggregatorSpecs = postAggregatorSpecs == null ? ImmutableList.<PostAggregator>of() : postAggregatorSpecs;
+    this.havingSpec = havingSpec;
+    this.limitSpec = (limitSpec == null) ? new NoopLimitSpec() : limitSpec;
+
+    Preconditions.checkNotNull(this.granularity, "Must specify a granularity");
+    Preconditions.checkNotNull(this.aggregatorSpecs, "Must specify at least one aggregator");
+    Queries.verifyAggregations(this.aggregatorSpecs, this.postAggregatorSpecs);
+
+    Function<Sequence<Row>, Sequence<Row>> postProcFn =
+        this.limitSpec.build(this.dimensions, this.aggregatorSpecs, this.postAggregatorSpecs);
+
+    if (havingSpec != null) {
+      postProcFn = Functions.compose(
+          postProcFn,
+          new Function<Sequence<Row>, Sequence<Row>>()
+          {
+            @Override
+            public Sequence<Row> apply(Sequence<Row> input)
+            {
+              return Sequences.filter(
+                  input,
+                  new Predicate<Row>()
+                  {
+                    @Override
+                    public boolean apply(Row input)
+                    {
+                      return GroupByQuery.this.havingSpec.eval(input);
+                    }
+                  }
+              );
+            }
+          }
+      );
+    }
+
+    limitFn = postProcFn;
+  }
+
+  /**
+   * A private constructor that avoids all of the various state checks.  Used by the with*() methods where the checks
+   * have already passed in order for the object to exist.
+   */
+  private GroupByQuery(
+      DataSource dataSource,
+      QuerySegmentSpec querySegmentSpec,
+      String query,
+      QueryGranularity granularity,
+      List<DimensionSpec> dimensions,
+      List<AggregatorFactory> aggregatorSpecs,
+      List<PostAggregator> postAggregatorSpecs,
+      HavingSpec havingSpec,
+      LimitSpec orderBySpec,
+      Function<Sequence<Row>, Sequence<Row>> limitFn,
+      Map<String, Object> context
+  )
+  {
+    super(dataSource, querySegmentSpec, false, context);
+
+    this.query = query;
+    this.granularity = granularity;
+    this.dimensions = dimensions;
+    this.aggregatorSpecs = aggregatorSpecs;
+    this.postAggregatorSpecs = postAggregatorSpecs;
+    this.havingSpec = havingSpec;
+    this.limitSpec = orderBySpec;
+    this.limitFn = limitFn;
+  }
+
+  @JsonProperty("query")
+  public String getQuery()
+  {
+    return query;
+  }
+
+  @JsonProperty
+  public QueryGranularity getGranularity()
+  {
+    return granularity;
+  }
+
+  @JsonProperty
+  public List<DimensionSpec> getDimensions()
+  {
+    return dimensions;
+  }
+
+  @JsonProperty("aggregations")
+  public List<AggregatorFactory> getAggregatorSpecs()
+  {
+    return aggregatorSpecs;
+  }
+
+  @JsonProperty("postAggregations")
+  public List<PostAggregator> getPostAggregatorSpecs()
+  {
+    return postAggregatorSpecs;
+  }
+
+  @JsonProperty("having")
+  public HavingSpec getHavingSpec()
+  {
+    return havingSpec;
+  }
+
+  @JsonProperty
+  public LimitSpec getLimitSpec()
+  {
+    return limitSpec;
+  }
+
+  @Override
+  public boolean hasFilters()
+  {
+    return query != null && !"".equals(query);
+  }
+
+  @Override
+  public String getType()
+  {
+    return GROUP_BY;
+  }
+
+  public Sequence<Row> applyLimit(Sequence<Row> results)
+  {
+    return limitFn.apply(results);
+  }
+
+  @Override
+  public GroupByQuery withOverriddenContext(Map<String, Object> contextOverride)
+  {
+    return new GroupByQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        query,
+        granularity,
+        dimensions,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
+        limitFn,
+        computeOverridenContext(contextOverride)
+    );
+  }
+
+  @Override
+  public GroupByQuery withQuerySegmentSpec(QuerySegmentSpec spec)
+  {
+    return new GroupByQuery(
+        getDataSource(),
+        spec,
+        query,
+        granularity,
+        dimensions,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
+        limitFn,
+        getContext()
+    );
+  }
+
+  public GroupByQuery withDimFilter(final String query)
+  {
+    return new GroupByQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        query,
+        getGranularity(),
+        getDimensions(),
+        getAggregatorSpecs(),
+        getPostAggregatorSpecs(),
+        getHavingSpec(),
+        getLimitSpec(),
+        limitFn,
+        getContext()
+    );
+  }
+
+  @Override
+  public Query<Row> withDataSource(DataSource dataSource)
+  {
+    return new GroupByQuery(
+        dataSource,
+        getQuerySegmentSpec(),
+        query,
+        granularity,
+        dimensions,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
+        limitFn,
+        getContext()
+    );
+  }
+
+  public GroupByQuery withDimensionSpecs(final List<DimensionSpec> dimensionSpecs)
+  {
+    return new GroupByQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getQuery(),
+        getGranularity(),
+        dimensionSpecs,
+        getAggregatorSpecs(),
+        getPostAggregatorSpecs(),
+        getHavingSpec(),
+        getLimitSpec(),
+        limitFn,
+        getContext()
+    );
+  }
+
+  public static class Builder
+  {
+    private DataSource dataSource;
+    private QuerySegmentSpec querySegmentSpec;
+    private String query;
+    private QueryGranularity granularity;
+    private List<DimensionSpec> dimensions;
+    private List<AggregatorFactory> aggregatorSpecs;
+    private List<PostAggregator> postAggregatorSpecs;
+    private HavingSpec havingSpec;
+
+    private Map<String, Object> context;
+
+    private LimitSpec limitSpec = null;
+    private List<OrderByColumnSpec> orderByColumnSpecs = Lists.newArrayList();
+    private int limit = Integer.MAX_VALUE;
+
+    public Builder()
+    {
+    }
+
+    public Builder(GroupByQuery query)
+    {
+      dataSource = query.getDataSource();
+      querySegmentSpec = query.getQuerySegmentSpec();
+      limitSpec = query.getLimitSpec();
+      this.query = query.getQuery();
+      granularity = query.getGranularity();
+      dimensions = query.getDimensions();
+      aggregatorSpecs = query.getAggregatorSpecs();
+      postAggregatorSpecs = query.getPostAggregatorSpecs();
+      havingSpec = query.getHavingSpec();
+      context = query.getContext();
+    }
+
+    public Builder(Builder builder)
+    {
+      dataSource = builder.dataSource;
+      querySegmentSpec = builder.querySegmentSpec;
+      limitSpec = builder.limitSpec;
+      query = builder.query;
+      granularity = builder.granularity;
+      dimensions = builder.dimensions;
+      aggregatorSpecs = builder.aggregatorSpecs;
+      postAggregatorSpecs = builder.postAggregatorSpecs;
+      havingSpec = builder.havingSpec;
+      limit = builder.limit;
+
+      context = builder.context;
+    }
+
+    public Builder setDataSource(DataSource dataSource)
+    {
+      this.dataSource = dataSource;
+      return this;
+    }
+
+    public Builder setDataSource(String dataSource)
+    {
+      this.dataSource = new TableDataSource(dataSource);
+      return this;
+    }
+
+    public Builder setDataSource(Query query)
+    {
+      this.dataSource = new QueryDataSource(query);
+      return this;
+    }
+
+    public Builder setInterval(QuerySegmentSpec interval)
+    {
+      return setQuerySegmentSpec(interval);
+    }
+
+    public Builder setInterval(List<Interval> intervals)
+    {
+      return setQuerySegmentSpec(new LegacySegmentSpec(intervals));
+    }
+
+    public Builder setInterval(Interval interval)
+    {
+      return setQuerySegmentSpec(new LegacySegmentSpec(interval));
+    }
+
+    public Builder setInterval(String interval)
+    {
+      return setQuerySegmentSpec(new LegacySegmentSpec(interval));
+    }
+
+    public Builder limit(int limit)
+    {
+      ensureExplicitLimitNotSet();
+      this.limit = limit;
+      return this;
+    }
+
+    public Builder addOrderByColumn(String dimension)
+    {
+      return addOrderByColumn(dimension, (OrderByColumnSpec.Direction) null);
+    }
+
+    public Builder addOrderByColumn(String dimension, String direction)
+    {
+      return addOrderByColumn(dimension, OrderByColumnSpec.determineDirection(direction));
+    }
+
+    public Builder addOrderByColumn(String dimension, OrderByColumnSpec.Direction direction)
+    {
+      return addOrderByColumn(new OrderByColumnSpec(dimension, direction));
+    }
+
+    public Builder addOrderByColumn(OrderByColumnSpec columnSpec)
+    {
+      ensureExplicitLimitNotSet();
+      this.orderByColumnSpecs.add(columnSpec);
+      return this;
+    }
+
+    public Builder setLimitSpec(LimitSpec limitSpec)
+    {
+      ensureFluentLimitsNotSet();
+      this.limitSpec = limitSpec;
+      return this;
+    }
+
+    private void ensureExplicitLimitNotSet()
+    {
+      if (limitSpec != null) {
+        throw new ISE("Ambiguous build, limitSpec[%s] already set", limitSpec);
+      }
+    }
+
+    private void ensureFluentLimitsNotSet()
+    {
+      if (!(limit == Integer.MAX_VALUE && orderByColumnSpecs.isEmpty())) {
+        throw new ISE("Ambiguous build, limit[%s] or columnSpecs[%s] already set.", limit, orderByColumnSpecs);
+      }
+    }
+
+    public Builder setQuerySegmentSpec(QuerySegmentSpec querySegmentSpec)
+    {
+      this.querySegmentSpec = querySegmentSpec;
+      return this;
+    }
+
+    public Builder setQuery(String query)
+    {
+      this.query = query;
+      return this;
+    }
+
+    public Builder setGranularity(QueryGranularity granularity)
+    {
+      this.granularity = granularity;
+      return this;
+    }
+
+    public Builder addDimension(String column)
+    {
+      return addDimension(column, column);
+    }
+
+    public Builder addDimension(String column, String outputName)
+    {
+      return addDimension(new DefaultDimensionSpec(column, outputName));
+    }
+
+    public Builder addDimension(DimensionSpec dimension)
+    {
+      if (dimensions == null) {
+        dimensions = Lists.newArrayList();
+      }
+
+      dimensions.add(dimension);
+      return this;
+    }
+
+    public Builder setDimensions(List<DimensionSpec> dimensions)
+    {
+      this.dimensions = Lists.newArrayList(dimensions);
+      return this;
+    }
+
+    public Builder addAggregator(AggregatorFactory aggregator)
+    {
+      if (aggregatorSpecs == null) {
+        aggregatorSpecs = Lists.newArrayList();
+      }
+
+      aggregatorSpecs.add(aggregator);
+      return this;
+    }
+
+    public Builder setAggregatorSpecs(List<AggregatorFactory> aggregatorSpecs)
+    {
+      this.aggregatorSpecs = Lists.newArrayList(aggregatorSpecs);
+      return this;
+    }
+
+    public Builder addPostAggregator(PostAggregator postAgg)
+    {
+      if (postAggregatorSpecs == null) {
+        postAggregatorSpecs = Lists.newArrayList();
+      }
+
+      postAggregatorSpecs.add(postAgg);
+      return this;
+    }
+
+    public Builder setPostAggregatorSpecs(List<PostAggregator> postAggregatorSpecs)
+    {
+      this.postAggregatorSpecs = Lists.newArrayList(postAggregatorSpecs);
+      return this;
+    }
+
+    public Builder setContext(Map<String, Object> context)
+    {
+      this.context = context;
+      return this;
+    }
+
+    public Builder setHavingSpec(HavingSpec havingSpec)
+    {
+      this.havingSpec = havingSpec;
+
+      return this;
+    }
+
+    public Builder setLimit(Integer limit)
+    {
+      this.limit = limit;
+
+      return this;
+    }
+
+    public Builder copy()
+    {
+      return new Builder(this);
+    }
+
+    public GroupByQuery build()
+    {
+      final LimitSpec theLimitSpec;
+      if (limitSpec == null) {
+        if (orderByColumnSpecs.isEmpty() && limit == Integer.MAX_VALUE) {
+          theLimitSpec = new NoopLimitSpec();
+        } else {
+          theLimitSpec = new DefaultLimitSpec(orderByColumnSpecs, limit);
+        }
+      } else {
+        theLimitSpec = limitSpec;
+      }
+
+      return new GroupByQuery(
+          dataSource,
+          querySegmentSpec,
+          query,
+          granularity,
+          dimensions,
+          aggregatorSpecs,
+          postAggregatorSpecs,
+          havingSpec,
+          theLimitSpec,
+          context
+      );
+    }
+  }
+
+  @Override
+  public String toString()
+  {
+    return "GroupByQuery{" +
+           "dataSource='" + getDataSource() + '\'' +
+           ", querySegmentSpec=" + getQuerySegmentSpec() +
+           ", limitSpec=" + limitSpec +
+           ", query=" + query +
+           ", granularity=" + granularity +
+           ", dimensions=" + dimensions +
+           ", aggregatorSpecs=" + aggregatorSpecs +
+           ", postAggregatorSpecs=" + postAggregatorSpecs +
+           ", havingSpec=" + havingSpec +
+           '}';
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+
+    GroupByQuery that = (GroupByQuery) o;
+
+    if (aggregatorSpecs != null ? !aggregatorSpecs.equals(that.aggregatorSpecs) : that.aggregatorSpecs != null) {
+      return false;
+    }
+    if (query != null ? !query.equals(that.query) : that.query != null) {
+      return false;
+    }
+    if (dimensions != null ? !dimensions.equals(that.dimensions) : that.dimensions != null) {
+      return false;
+    }
+    if (granularity != null ? !granularity.equals(that.granularity) : that.granularity != null) {
+      return false;
+    }
+    if (havingSpec != null ? !havingSpec.equals(that.havingSpec) : that.havingSpec != null) {
+      return false;
+    }
+    if (limitSpec != null ? !limitSpec.equals(that.limitSpec) : that.limitSpec != null) {
+      return false;
+    }
+    if (postAggregatorSpecs != null
+        ? !postAggregatorSpecs.equals(that.postAggregatorSpecs)
+        : that.postAggregatorSpecs != null) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    int result = super.hashCode();
+    result = 31 * result + (limitSpec != null ? limitSpec.hashCode() : 0);
+    result = 31 * result + (havingSpec != null ? havingSpec.hashCode() : 0);
+    result = 31 * result + (query != null ? query.hashCode() : 0);
+    result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
+    result = 31 * result + (dimensions != null ? dimensions.hashCode() : 0);
+    result = 31 * result + (aggregatorSpecs != null ? aggregatorSpecs.hashCode() : 0);
+    result = 31 * result + (postAggregatorSpecs != null ? postAggregatorSpecs.hashCode() : 0);
+    result = 31 * result + (limitFn != null ? limitFn.hashCode() : 0);
+    return result;
+  }
+}

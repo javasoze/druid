@@ -28,6 +28,7 @@ import java.util.Set;
 import org.apache.lucene.document.*;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.DoubleField;
+import org.apache.lucene.util.BytesRef;
 
 public class LuceneDocumentBuilder
 {
@@ -47,11 +48,14 @@ public class LuceneDocumentBuilder
       DimensionSchema schema = dimensionsSpec.getSchema(dimensionName);
       Object value = row.getRaw(dimensionName);
       if (ValueType.STRING.equals(schema.getValueType())) {
-        doc.add(new TextField(dimensionName, String.valueOf(value), Store.NO));
+        doc.add(new TextField(dimensionName, String.valueOf(value), Store.YES));
+        doc.add(new SortedDocValuesField(dimensionName, new BytesRef(String.valueOf(value))));
       } else if (ValueType.FLOAT.equals(schema.getValueType())) {
-        doc.add(new DoubleField(dimensionName, (Double)value, Store.NO));
+        doc.add(new DoubleField(dimensionName, (Double)value, Store.YES));
+        doc.add(new DoubleDocValuesField(dimensionName, (Double)value));
       } else if (ValueType.LONG.equals(schema.getValueType())) {
-        doc.add(new LongField(dimensionName, (Long)value, Store.NO));
+        doc.add(new LongField(dimensionName, (Long)value, Store.YES));
+        doc.add(new NumericDocValuesField(dimensionName, (Long)value));
       }
     }
     return doc;

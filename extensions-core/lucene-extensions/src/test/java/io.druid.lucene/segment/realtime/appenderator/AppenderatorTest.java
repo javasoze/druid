@@ -121,6 +121,7 @@ public class AppenderatorTest {
                     null,
                     "dim",
                     "bar",
+                    null,
                     1
             );
 
