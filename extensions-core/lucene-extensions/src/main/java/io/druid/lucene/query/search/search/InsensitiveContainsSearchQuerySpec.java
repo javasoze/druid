@@ -17,47 +17,29 @@
  * under the License.
  */
 
-package io.druid.lucene.query;
+package io.druid.lucene.query.search.search;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.Objects;
-
-public class LuceneQueryResultValue
+/**
+ */
+public class InsensitiveContainsSearchQuerySpec extends ContainsSearchQuerySpec
 {
-  private final long count;
-  private final long size;
-
   @JsonCreator
-  public LuceneQueryResultValue(
-      @JsonProperty("count") long count,
-      @JsonProperty("size") long size
+  public InsensitiveContainsSearchQuerySpec(
+      @JsonProperty("value") String value
   )
   {
-    this.size = size;
-    this.count = count;
-  }
-
-  @JsonProperty
-  public long getCount()
-  {
-    return count;
-  }
-  
-  @JsonProperty
-  public long getSize()
-  {
-    return size;
+    super(value, false);
   }
 
   @Override
   public String toString()
   {
-    return "LuceneQueryResultValue{" +
-           "count=" + count + ", " +
-           "size=" + size +
-           '}';
+    return "InsensitiveContainsSearchQuerySpec{" +
+           "value=" + getValue() +
+           "}";
   }
 
   @Override
@@ -69,13 +51,6 @@ public class LuceneQueryResultValue
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    LuceneQueryResultValue that = (LuceneQueryResultValue) o;
-    return count == that.count;
-  }
-
-  @Override
-  public int hashCode()
-  {
-    return Objects.hash(size, count);
+    return super.equals(o);
   }
 }

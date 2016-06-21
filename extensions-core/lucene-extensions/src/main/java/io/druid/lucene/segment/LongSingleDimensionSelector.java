@@ -1,9 +1,7 @@
-package io.druid.lucene.query;
+package io.druid.lucene.segment;
 
 import org.apache.lucene.index.NumericDocValues;
-import org.apache.solr.search.DocIterator;
 
-import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
 

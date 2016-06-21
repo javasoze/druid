@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.lucene.query;
+package io.druid.lucene.segment;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
@@ -36,12 +36,10 @@ import io.druid.segment.Segment;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
-import org.apache.lucene.search.TopDocs;
 
 import java.util.Map;
 import java.util.concurrent.ExecutorService;

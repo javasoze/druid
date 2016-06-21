@@ -1,8 +1,9 @@
-package io.druid.lucene.query;
+package io.druid.lucene.segment;
 
 import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.util.BytesRef;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 
@@ -26,8 +27,9 @@ public class StringSIngleDimensionSelector implements DimensionSelector<Integer>
         return docValues.get(id).toString();
     }
 
+
     @Override
-    public Integer lookupId(String name) {
-        return docValues.lookupTerm(new BytesRef(name));
+    public Type getType() {
+        return Type.INT;
     }
 }

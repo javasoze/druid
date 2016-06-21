@@ -28,8 +28,8 @@ import com.metamx.common.guava.Sequences;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
-import io.druid.lucene.query.LuceneDruidQuery;
-import io.druid.lucene.query.LuceneQueryResultValue;
+import io.druid.lucene.segment.LuceneDruidQuery;
+import io.druid.lucene.segment.LuceneQueryResultValue;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.LegacySegmentSpec;
@@ -114,30 +114,6 @@ public class AppenderatorTest {
 
             Thread.sleep(5000);
 
-            // Query1: foo/bar
-            final LuceneDruidQuery query1 = new LuceneDruidQuery(
-                    new TableDataSource(AppenderatorTester.DATASOURCE),
-                    new LegacySegmentSpec(ImmutableList.of(new Interval("2000/2002"))),
-                    null,
-                    "dim",
-                    "bar",
-                    null,
-                    1
-            );
-
-            final List<Result<LuceneQueryResultValue>> results1 = Lists.newArrayList();
-            Sequences.toList(query1.run(appenderator, ImmutableMap.<String, Object>of()), results1);
-            Assert.assertEquals(
-                    "query1",
-                    ImmutableList.of(
-                            new Result<>(
-                                    new DateTime("2000"),
-                                    new LuceneQueryResultValue(2, 6)
-                            )
-
-                    ),
-                    results1
-            );
 
         }
     }

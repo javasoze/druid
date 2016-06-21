@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.lucene.query;
+package io.druid.lucene.segment;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

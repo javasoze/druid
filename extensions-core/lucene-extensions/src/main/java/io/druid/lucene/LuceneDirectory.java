@@ -21,17 +21,17 @@ package io.druid.lucene;
 
 import io.druid.segment.column.ValueType;
 import org.apache.lucene.index.IndexReader;
+
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
 
 /**
  */
-public interface LuceneDirectory {
+public interface LuceneDirectory extends Closeable{
     int numRows();
 
     IndexReader getIndexReader() throws IOException;
 
     Map<String, ValueType> getFieldTypes();
-
-    void close() throws IOException;
 }

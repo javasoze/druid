@@ -31,10 +31,10 @@ import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.incremental.IncrementalIndex;
-import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OffheapIncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Queue;
@@ -80,9 +80,9 @@ public class GroupByQueryHelper
           }
         }
     );
-    final IncrementalIndex index;
 
     final boolean sortResults = query.getContextValue(CTX_KEY_SORT_RESULTS, true);
+    final IncrementalIndex index;
 
     if (query.getContextValue("useOffheap", false)) {
       index = new OffheapIncrementalIndex(
@@ -128,7 +128,7 @@ public class GroupByQueryHelper
                 )
             );
           }
-          catch (IndexSizeExceededException e) {
+          catch (IOException e) {
             throw new ISE(e.getMessage());
           }
         } else {

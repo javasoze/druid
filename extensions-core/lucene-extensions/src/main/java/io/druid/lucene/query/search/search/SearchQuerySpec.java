@@ -17,34 +17,23 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.lucene.query.search.search;
 
-import com.google.common.collect.Lists;
-import io.druid.query.aggregation.AggregatorFactory;
-
-import java.nio.ByteBuffer;
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
  */
-public class QueryCacheHelper
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "contains", value = ContainsSearchQuerySpec.class),
+    @JsonSubTypes.Type(name = "insensitive_contains", value = InsensitiveContainsSearchQuerySpec.class),
+    @JsonSubTypes.Type(name = "fragment", value = FragmentSearchQuerySpec.class),
+    @JsonSubTypes.Type(name = "regex", value = RegexSearchQuerySpec.class)
+})
+public interface SearchQuerySpec
 {
-  public static byte[] computeAggregatorBytes(List<? extends AggregatorFactory> aggregatorSpecs)
-  {
-    List<byte[]> cacheKeySet = Lists.newArrayListWithCapacity(aggregatorSpecs.size());
+  public boolean accept(String dimVal);
 
-    int totalSize = 0;
-    for (AggregatorFactory spec : aggregatorSpecs) {
-      final byte[] cacheKey = spec.getCacheKey();
-      cacheKeySet.add(cacheKey);
-      totalSize += cacheKey.length;
-    }
-
-    ByteBuffer retVal = ByteBuffer.allocate(totalSize);
-    for (byte[] bytes : cacheKeySet) {
-      retVal.put(bytes);
-    }
-    return retVal.array();
-  }
-
+  public byte[] getCacheKey();
 }

@@ -17,34 +17,23 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.lucene.query.search.search;
 
-import com.google.common.collect.Lists;
-import io.druid.query.aggregation.AggregatorFactory;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-import java.nio.ByteBuffer;
-import java.util.List;
+import java.util.Comparator;
 
 /**
  */
-public class QueryCacheHelper
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = LexicographicSearchSortSpec.class)
+@JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "lexicographic", value = LexicographicSearchSortSpec.class),
+    @JsonSubTypes.Type(name = "strlen", value = StrlenSearchSortSpec.class)
+})
+public interface SearchSortSpec
 {
-  public static byte[] computeAggregatorBytes(List<? extends AggregatorFactory> aggregatorSpecs)
-  {
-    List<byte[]> cacheKeySet = Lists.newArrayListWithCapacity(aggregatorSpecs.size());
+  Comparator<SearchHit> getComparator();
 
-    int totalSize = 0;
-    for (AggregatorFactory spec : aggregatorSpecs) {
-      final byte[] cacheKey = spec.getCacheKey();
-      cacheKeySet.add(cacheKey);
-      totalSize += cacheKey.length;
-    }
-
-    ByteBuffer retVal = ByteBuffer.allocate(totalSize);
-    for (byte[] bytes : cacheKeySet) {
-      retVal.put(bytes);
-    }
-    return retVal.array();
-  }
-
+  byte[] getCacheKey();
 }

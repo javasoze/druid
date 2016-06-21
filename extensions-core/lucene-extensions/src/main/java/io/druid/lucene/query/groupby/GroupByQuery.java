@@ -32,17 +32,16 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularity;
+import io.druid.lucene.aggregation.LuceneAggregatorFactory;
+import io.druid.lucene.query.groupby.orderby.DefaultLimitSpec;
+import io.druid.lucene.query.groupby.orderby.LimitSpec;
+import io.druid.lucene.query.groupby.orderby.NoopLimitSpec;
+import io.druid.lucene.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.*;
-import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.having.HavingSpec;
-import io.druid.query.groupby.orderby.DefaultLimitSpec;
-import io.druid.query.groupby.orderby.LimitSpec;
-import io.druid.query.groupby.orderby.NoopLimitSpec;
-import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.Interval;
@@ -64,7 +63,7 @@ public class GroupByQuery extends BaseQuery<Row>
   private final String query;
   private final QueryGranularity granularity;
   private final List<DimensionSpec> dimensions;
-  private final List<AggregatorFactory> aggregatorSpecs;
+  private final List<LuceneAggregatorFactory> aggregatorSpecs;
   private final List<PostAggregator> postAggregatorSpecs;
 
   private final Function<Sequence<Row>, Sequence<Row>> limitFn;
@@ -76,7 +75,7 @@ public class GroupByQuery extends BaseQuery<Row>
       @JsonProperty("query") String query,
       @JsonProperty("granularity") QueryGranularity granularity,
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
-      @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
+      @JsonProperty("aggregations") List<LuceneAggregatorFactory> aggregatorSpecs,
       @JsonProperty("postAggregations") List<PostAggregator> postAggregatorSpecs,
       @JsonProperty("having") HavingSpec havingSpec,
       @JsonProperty("limitSpec") LimitSpec limitSpec,
@@ -97,7 +96,6 @@ public class GroupByQuery extends BaseQuery<Row>
 
     Preconditions.checkNotNull(this.granularity, "Must specify a granularity");
     Preconditions.checkNotNull(this.aggregatorSpecs, "Must specify at least one aggregator");
-    Queries.verifyAggregations(this.aggregatorSpecs, this.postAggregatorSpecs);
 
     Function<Sequence<Row>, Sequence<Row>> postProcFn =
         this.limitSpec.build(this.dimensions, this.aggregatorSpecs, this.postAggregatorSpecs);
@@ -139,7 +137,7 @@ public class GroupByQuery extends BaseQuery<Row>
       String query,
       QueryGranularity granularity,
       List<DimensionSpec> dimensions,
-      List<AggregatorFactory> aggregatorSpecs,
+      List<LuceneAggregatorFactory> aggregatorSpecs,
       List<PostAggregator> postAggregatorSpecs,
       HavingSpec havingSpec,
       LimitSpec orderBySpec,
@@ -178,7 +176,7 @@ public class GroupByQuery extends BaseQuery<Row>
   }
 
   @JsonProperty("aggregations")
-  public List<AggregatorFactory> getAggregatorSpecs()
+  public List<LuceneAggregatorFactory> getAggregatorSpecs()
   {
     return aggregatorSpecs;
   }
@@ -236,24 +234,6 @@ public class GroupByQuery extends BaseQuery<Row>
     );
   }
 
-  @Override
-  public GroupByQuery withQuerySegmentSpec(QuerySegmentSpec spec)
-  {
-    return new GroupByQuery(
-        getDataSource(),
-        spec,
-        query,
-        granularity,
-        dimensions,
-        aggregatorSpecs,
-        postAggregatorSpecs,
-        havingSpec,
-        limitSpec,
-        limitFn,
-        getContext()
-    );
-  }
-
   public GroupByQuery withDimFilter(final String query)
   {
     return new GroupByQuery(
@@ -268,6 +248,24 @@ public class GroupByQuery extends BaseQuery<Row>
         getLimitSpec(),
         limitFn,
         getContext()
+    );
+  }
+
+  @Override
+  public GroupByQuery withQuerySegmentSpec(QuerySegmentSpec spec)
+  {
+    return new GroupByQuery(
+            getDataSource(),
+            spec,
+            query,
+            granularity,
+            dimensions,
+            aggregatorSpecs,
+            postAggregatorSpecs,
+            havingSpec,
+            limitSpec,
+            limitFn,
+            getContext()
     );
   }
 
@@ -313,7 +311,7 @@ public class GroupByQuery extends BaseQuery<Row>
     private String query;
     private QueryGranularity granularity;
     private List<DimensionSpec> dimensions;
-    private List<AggregatorFactory> aggregatorSpecs;
+    private List<LuceneAggregatorFactory> aggregatorSpecs;
     private List<PostAggregator> postAggregatorSpecs;
     private HavingSpec havingSpec;
 
@@ -489,7 +487,7 @@ public class GroupByQuery extends BaseQuery<Row>
       return this;
     }
 
-    public Builder addAggregator(AggregatorFactory aggregator)
+    public Builder addAggregator(LuceneAggregatorFactory aggregator)
     {
       if (aggregatorSpecs == null) {
         aggregatorSpecs = Lists.newArrayList();
@@ -499,7 +497,7 @@ public class GroupByQuery extends BaseQuery<Row>
       return this;
     }
 
-    public Builder setAggregatorSpecs(List<AggregatorFactory> aggregatorSpecs)
+    public Builder setAggregatorSpecs(List<LuceneAggregatorFactory> aggregatorSpecs)
     {
       this.aggregatorSpecs = Lists.newArrayList(aggregatorSpecs);
       return this;

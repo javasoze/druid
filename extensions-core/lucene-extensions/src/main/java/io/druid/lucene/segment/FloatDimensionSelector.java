@@ -1,6 +1,4 @@
-package io.druid.lucene.query;
-
-import java.text.DecimalFormat;
+package io.druid.lucene.segment;
 
 /**
  */
@@ -13,7 +11,7 @@ public abstract class FloatDimensionSelector implements DimensionSelector<Float>
     }
 
     @Override
-    public Float lookupId(String name) {
-        return Float.parseFloat(name);
+    public Type getType() {
+        return Type.FLOAT;
     }
 }

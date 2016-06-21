@@ -1,12 +1,10 @@
-package io.druid.lucene.query;
+package io.druid.lucene.segment;
 
-import io.druid.segment.data.IndexedInts;
 import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.util.BytesRef;
-import org.apache.solr.search.DocIterator;
 
-import java.io.IOException;
-import java.util.Iterator;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -20,7 +18,13 @@ public class StringMultiDimensionSelector implements DimensionSelector<Long> {
 
     @Override
     public List<Long> getRow(int doc) {
-        return null;
+        docValues.setDocument(doc);
+        long ord;
+        List<Long> row = new ArrayList<>();
+        while (SortedSetDocValues.NO_MORE_ORDS != (ord = docValues.nextOrd())) {
+            row.add(ord);
+        }
+        return row;
     }
 
     @Override
@@ -29,7 +33,8 @@ public class StringMultiDimensionSelector implements DimensionSelector<Long> {
     }
 
     @Override
-    public Long lookupId(String name) {
-        return docValues.lookupTerm(new BytesRef(name));
+    public Type getType() {
+        return Type.LONG;
     }
+
 }

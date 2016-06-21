@@ -1,4 +1,4 @@
-package io.druid.lucene.query;
+package io.druid.lucene.segment;
 
 import org.apache.lucene.index.NumericDocValues;
 
@@ -8,7 +8,6 @@ import java.util.List;
 /**
  */
 public class FloatSingleDimensionSelector extends FloatDimensionSelector {
-
     private NumericDocValues docValues;
 
     public FloatSingleDimensionSelector(NumericDocValues docValues) {

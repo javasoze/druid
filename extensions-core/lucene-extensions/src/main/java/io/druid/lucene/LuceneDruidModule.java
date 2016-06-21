@@ -28,9 +28,9 @@ import com.google.inject.Binder;
 import io.druid.guice.DruidBinders;
 import io.druid.guice.LazySingleton;
 import io.druid.initialization.DruidModule;
-import io.druid.lucene.query.LuceneDruidQuery;
-import io.druid.lucene.query.LuceneQueryRunnerFactory;
-import io.druid.lucene.query.LuceneQueryToolChest;
+import io.druid.lucene.segment.LuceneDruidQuery;
+import io.druid.lucene.segment.LuceneQueryRunnerFactory;
+import io.druid.lucene.segment.LuceneQueryToolChest;
 import io.druid.segment.realtime.appenderator.AppenderatorPlumberSchool;
 
 import java.util.List;

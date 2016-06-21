@@ -1,7 +1,6 @@
-package io.druid.lucene.query;
+package io.druid.lucene.segment;
 
-import java.text.DecimalFormat;
-import java.util.List;
+import java.nio.ByteBuffer;
 
 /**
  */
@@ -12,7 +11,7 @@ public abstract class LongDimensionSelector implements DimensionSelector<Long> {
     }
 
     @Override
-    public Long lookupId(String name) {
-        return Long.parseLong(name);
+    public Type getType() {
+        return Type.LONG;
     }
 }

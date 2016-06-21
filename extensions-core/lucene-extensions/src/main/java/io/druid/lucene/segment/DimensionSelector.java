@@ -1,10 +1,16 @@
-package io.druid.lucene.query;
+package io.druid.lucene.segment;
 
 import java.util.List;
 
 /**
  */
 public interface DimensionSelector<T> {
+    public enum Type {
+        LONG,
+        INT,
+        FLOAT
+    }
+
     /**
      * Gets all values for the row inside of an IntBuffer.  I.e. one possible implementation could be
      *
@@ -35,16 +41,9 @@ public interface DimensionSelector<T> {
      * lookupName(0) =&gt; A
      * lookupName(1) =&gt; B
      *
-     * @param id id to lookup the field name for
      * @return the field name for the given id
      */
     public String lookupName(T id);
 
-    /**
-     * The ID is the int id value of the field.
-     *
-     * @param name field name to look up the id for
-     * @return the id for the given field name
-     */
-    public T lookupId(String name);
+    public Type getType();
 }
