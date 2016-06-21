@@ -18,7 +18,7 @@ public interface DimensionSelector<T> {
      *
      * @return all values for the row as an IntBuffer
      */
-    public List<T> getRow(int doc);
+    public List<T> getRow();
 
     /**
      * The Name is the String name of the actual field.  It is assumed that storage layers convert names

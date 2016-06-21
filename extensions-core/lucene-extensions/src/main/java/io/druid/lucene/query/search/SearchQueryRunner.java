@@ -20,20 +20,13 @@
 package io.druid.lucene.query.search;
 
 import com.google.common.base.Function;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.metamx.collections.bitmap.BitmapFactory;
-import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.common.IAE;
 import com.metamx.common.ISE;
-import com.metamx.common.guava.Accumulator;
-import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.EmittingLogger;
-import io.druid.granularity.QueryGranularities;
 import io.druid.lucene.LuceneDirectory;
 import io.druid.lucene.query.search.search.SearchHit;
 import io.druid.lucene.query.search.search.SearchQuery;
@@ -43,14 +36,15 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.Result;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.extraction.IdentityExtractionFn;
-import io.druid.segment.column.BitmapIndex;
-import io.druid.segment.column.Column;
+import io.druid.segment.DimensionSelector;
 import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.mutable.MutableInt;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.LeafReaderContext;
 
-import java.util.Arrays;
+import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -83,10 +77,22 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
 //    final SearchQuerySpec searchQuerySpec = query.getQuery();
 //    final int limit = query.getLimit();
 //    final boolean descending = query.isDescending();
+//    final TreeMap<SearchHit, MutableInt> retVal = Maps.newTreeMap(query.getSort().getComparator());
 //
-//    if (directory != null) {
-//      final TreeMap<SearchHit, MutableInt> retVal = Maps.newTreeMap(query.getSort().getComparator());
-//
+//    try {
+//      IndexReader reader = directory.getIndexReader();
+//      Sequence<LeafReader> leafReaders = Sequences.map(
+//              Sequences.simple(reader.leaves()),
+//              new Function<LeafReaderContext, LeafReader>()
+//              {
+//                @Nullable
+//                @Override
+//                public LeafReader apply(@Nullable LeafReaderContext leafReaderContext) {
+//                  return leafReaderContext.reader();
+//                }
+//              }
+//      );
+//      LeafReader leafReader = (LeafReader)reader;
 //      Iterable<DimensionSpec> dimsToSearch;
 //      if (dimensions == null || dimensions.isEmpty()) {
 //        dimsToSearch = Iterables.transform(directory.getFieldTypes().keySet(), Druids.DIMENSION_IDENTITY);
@@ -94,119 +100,42 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
 //        dimsToSearch = dimensions;
 //      }
 //
-//      final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
-//
-//      final ImmutableBitmap baseFilter =
-//          filter == null ? null : filter.getBitmapIndex(new ColumnSelectorBitmapIndexSelector(bitmapFactory, index));
-//
-//      for (DimensionSpec dimension : dimsToSearch) {
-//        final Column column = index.getColumn(dimension.getDimension());
-//        if (column == null) {
-//          continue;
-//        }
-//
-//        final BitmapIndex bitmapIndex = column.getBitmapIndex();
-//        ExtractionFn extractionFn = dimension.getExtractionFn();
-//        if (extractionFn == null) {
-//          extractionFn = IdentityExtractionFn.getInstance();
-//        }
-//        if (bitmapIndex != null) {
-//          for (int i = 0; i < bitmapIndex.getCardinality(); ++i) {
-//            String dimVal = Strings.nullToEmpty(extractionFn.apply(bitmapIndex.getValue(i)));
-//            if (!searchQuerySpec.accept(dimVal)) {
-//              continue;
-//            }
-//            ImmutableBitmap bitmap = bitmapIndex.getBitmap(i);
-//            if (baseFilter != null) {
-//              bitmap = bitmapFactory.intersection(Arrays.asList(baseFilter, bitmap));
-//            }
-//            if (bitmap.size() > 0) {
-//              MutableInt counter = new MutableInt(bitmap.size());
-//              MutableInt prev = retVal.put(new SearchHit(dimension.getOutputName(), dimVal), counter);
-//              if (prev != null) {
-//                counter.add(prev.intValue());
-//              }
-//              if (retVal.size() >= limit) {
-//                return makeReturnResult(limit, retVal);
-//              }
-//            }
-//          }
-//        }
+//      Map<String, DimensionSelector> dimSelectors = Maps.newHashMap();
+//      for (DimensionSpec dim : dimsToSearch) {
+//        dimSelectors.put(
+//                dim.getOutputName(),
+//                cursor.makeDimensionSelector(dim)
+//        );
 //      }
 //
-//      return makeReturnResult(limit, retVal);
-//    }
+//      while (!cursor.isDone()) {
+//        for (Map.Entry<String, DimensionSelector> entry : dimSelectors.entrySet()) {
+//          final DimensionSelector selector = entry.getValue();
 //
-//    final StorageAdapter adapter = segment.asStorageAdapter();
-//
-//    if (adapter == null) {
-//      log.makeAlert("WTF!? Unable to process search query on segment.")
-//         .addData("segment", segment.getIdentifier())
-//         .addData("query", query).emit();
-//      throw new ISE(
-//          "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
-//      );
-//    }
-//
-//    final Iterable<DimensionSpec> dimsToSearch;
-//    if (dimensions == null || dimensions.isEmpty()) {
-//      dimsToSearch = Iterables.transform(adapter.getAvailableDimensions(), Druids.DIMENSION_IDENTITY);
-//    } else {
-//      dimsToSearch = dimensions;
-//    }
-//
-//    final Sequence<Cursor> cursors = adapter.makeCursors(filter, segment.getDataInterval(), QueryGranularities.ALL, descending);
-//
-//    final TreeMap<SearchHit, MutableInt> retVal = cursors.accumulate(
-//        Maps.<SearchHit, SearchHit, MutableInt>newTreeMap(query.getSort().getComparator()),
-//        new Accumulator<TreeMap<SearchHit, MutableInt>, Cursor>()
-//        {
-//          @Override
-//          public TreeMap<SearchHit, MutableInt> accumulate(TreeMap<SearchHit, MutableInt> set, Cursor cursor)
-//          {
-//            if (set.size() >= limit) {
-//              return set;
-//            }
-//
-//            Map<String, DimensionSelector> dimSelectors = Maps.newHashMap();
-//            for (DimensionSpec dim : dimsToSearch) {
-//              dimSelectors.put(
-//                  dim.getOutputName(),
-//                  cursor.makeDimensionSelector(dim)
-//              );
-//            }
-//
-//            while (!cursor.isDone()) {
-//              for (Map.Entry<String, DimensionSelector> entry : dimSelectors.entrySet()) {
-//                final DimensionSelector selector = entry.getValue();
-//
-//                if (selector != null) {
-//                  final IndexedInts vals = selector.getRow();
-//                  for (int i = 0; i < vals.size(); ++i) {
-//                    final String dimVal = selector.lookupName(vals.get(i));
-//                    if (searchQuerySpec.accept(dimVal)) {
-//                      MutableInt counter = new MutableInt(1);
-//                      MutableInt prev = set.put(new SearchHit(entry.getKey(), dimVal), counter);
-//                      if (prev != null) {
-//                        counter.add(prev.intValue());
-//                      }
-//                      if (set.size() >= limit) {
-//                        return set;
-//                      }
-//                    }
-//                  }
+//          if (selector != null) {
+//            final IndexedInts vals = selector.getRow();
+//            for (int i = 0; i < vals.size(); ++i) {
+//              final String dimVal = selector.lookupName(vals.get(i));
+//              if (searchQuerySpec.accept(dimVal)) {
+//                MutableInt counter = new MutableInt(1);
+//                MutableInt prev = set.put(new SearchHit(entry.getKey(), dimVal), counter);
+//                if (prev != null) {
+//                  counter.add(prev.intValue());
+//                }
+//                if (set.size() >= limit) {
+//                  return set;
 //                }
 //              }
-//
-//              cursor.advance();
 //            }
-//
-//            return set;
 //          }
 //        }
-//    );
 //
-//    return makeReturnResult(limit, retVal);
+//        cursor.advance();
+//      }
+//    } catch (IOException e) {
+//      throw new IAE(e, "");
+//    }
+
     return null;
   }
 

@@ -100,7 +100,7 @@ public class LuceneAppenderator implements Appenderator, Runnable
   private volatile long nextFlush;
   private volatile ListeningExecutorService persistExecutor = null;
   private volatile ListeningExecutorService mergeExecutor = null;
-  
+
   public LuceneAppenderator(
       DataSchema schema,
       RealtimeTuningConfig realtimeTuningConfig,
@@ -163,7 +163,7 @@ public class LuceneAppenderator implements Appenderator, Runnable
 
     if (retVal == null) {
       retVal = new RealtimeDirectory(identifier, realtimeTuningConfig.getBasePersistDirectory(),
-              docBuilder, realtimeTuningConfig.getMaxRowsInMemory());
+              docBuilder, schema.getParser(), realtimeTuningConfig.getMaxRowsInMemory());
 
       try {
         segmentAnnouncer.announceSegment(retVal.getSegment());

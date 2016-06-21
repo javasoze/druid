@@ -28,11 +28,27 @@ import com.metamx.common.guava.Sequences;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.QueryGranularity;
+import io.druid.lucene.aggregation.LongSumAggregatorFactory;
+import io.druid.lucene.aggregation.LuceneAggregatorFactory;
+import io.druid.lucene.query.groupby.GroupByQuery;
 import io.druid.lucene.segment.LuceneDruidQuery;
 import io.druid.lucene.segment.LuceneQueryResultValue;
+import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.post.FieldAccessPostAggregator;
+import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.groupby.orderby.DefaultLimitSpec;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.ordering.StringComparators;
 import io.druid.query.spec.LegacySegmentSpec;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.realtime.appenderator.Appenderator;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 import io.druid.segment.realtime.appenderator.SegmentsAndMetadata;
@@ -44,10 +60,7 @@ import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -114,6 +127,56 @@ public class AppenderatorTest {
 
             Thread.sleep(5000);
 
+
+            QuerySegmentSpec firstToThird = new MultipleIntervalSegmentSpec(
+                    Arrays.asList(new Interval("1999-04-01T00:00:00.000Z/2011-04-03T00:00:00.000Z")));
+            QueryGranularity dayGran = QueryGranularities.DAY;
+            Query query = GroupByQuery
+                    .builder()
+                    .setDataSource(AppenderatorTester.DATASOURCE)
+                    .setQuerySegmentSpec(firstToThird)
+                    .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("dim", "bar")))
+                    .setAggregatorSpecs(
+                            Arrays.<LuceneAggregatorFactory>asList(
+                                    new LongSumAggregatorFactory("idx", "dim")
+                            )
+                    )
+                    .setQuery("dim:foo")
+                    .setGranularity(dayGran)
+//                    .setPostAggregatorSpecs(ImmutableList.<PostAggregator>of(new FieldAccessPostAggregator("x", "idx")))
+//                    .setLimitSpec(
+//                            new DefaultLimitSpec(
+//                                    ImmutableList.of(new OrderByColumnSpec("alias", OrderByColumnSpec.Direction.ASCENDING, StringComparators.LEXICOGRAPHIC)),
+//                                    100
+//                            )
+//                    )
+                    .build();
+            final List<Result<LuceneQueryResultValue>> results1 = Lists.newArrayList();
+            Sequences.toList(query.run(appenderator, ImmutableMap.<String, Object>of()), results1);
+//            // Query1: foo/bar
+//            final GroupByQuery query1 = new GroupByQuery(
+//                    new TableDataSource(AppenderatorTester.DATASOURCE),
+//                    new LegacySegmentSpec(ImmutableList.of(new Interval("2000/2002"))),
+//                    null,
+//                    "dim",
+//                    "bar",
+//                    null,
+//                    1
+//            );
+//
+//            final List<Result<LuceneQueryResultValue>> results1 = Lists.newArrayList();
+//            Sequences.toList(query1.run(appenderator, ImmutableMap.<String, Object>of()), results1);
+//            Assert.assertEquals(
+//                    "query1",
+//                    ImmutableList.of(
+//                            new Result<>(
+//                                    new DateTime("2000"),
+//                                    new LuceneQueryResultValue(2, 6)
+//                            )
+//
+//                    ),
+//                    results1
+//            );
 
         }
     }

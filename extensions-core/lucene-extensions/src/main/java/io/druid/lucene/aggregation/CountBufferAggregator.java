@@ -17,21 +17,51 @@
  * under the License.
  */
 
-package io.druid.lucene;
+package io.druid.lucene.aggregation;
 
-import io.druid.data.input.impl.DimensionSchema;
-import org.apache.lucene.index.IndexReader;
+import io.druid.query.aggregation.BufferAggregator;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.Map;
+import java.nio.ByteBuffer;
 
 /**
  */
-public interface LuceneDirectory extends Closeable{
-    int numRows();
+public class CountBufferAggregator implements BufferAggregator
+{
 
-    IndexReader getIndexReader() throws IOException;
+  @Override
+  public void init(ByteBuffer buf, int position)
+  {
+    buf.putLong(position, 0L);
+  }
 
-    Map<String, DimensionSchema.ValueType> getFieldTypes();
+  @Override
+  public void aggregate(ByteBuffer buf, int position)
+  {
+    buf.putLong(position, buf.getLong(position) + 1);
+  }
+
+  @Override
+  public Object get(ByteBuffer buf, int position)
+  {
+    return buf.getLong(position);
+  }
+
+  @Override
+  public float getFloat(ByteBuffer buf, int position)
+  {
+    return buf.getLong(position);
+  }
+
+
+  @Override
+  public long getLong(ByteBuffer buf, int position)
+  {
+    return buf.getLong(position);
+  }
+
+  @Override
+  public void close()
+  {
+    // no resources to cleanup
+  }
 }

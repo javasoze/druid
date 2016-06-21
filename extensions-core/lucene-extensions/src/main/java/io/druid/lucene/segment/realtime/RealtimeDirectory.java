@@ -20,9 +20,10 @@ package io.druid.lucene.segment.realtime;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.impl.DimensionSchema;
+import io.druid.data.input.impl.DimensionsSpec;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.lucene.LuceneDirectory;
-import io.druid.lucene.segment.realtime.LuceneDocumentBuilder;
-import io.druid.segment.column.ValueType;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
@@ -37,10 +38,9 @@ import org.apache.lucene.store.RAMDirectory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  */
@@ -60,6 +60,8 @@ public class RealtimeDirectory implements LuceneDirectory {
     private volatile boolean isOpen;
     private final Object refreshLock = new Object();
     private volatile boolean writable = true;
+
+    private final Map<String, DimensionSchema.ValueType> dimensions;
 
     private static IndexWriter buildRamWriter(
             RAMDirectory dir, Analyzer analyzer, int maxDocsPerSegment) throws IOException {
@@ -86,16 +88,34 @@ public class RealtimeDirectory implements LuceneDirectory {
     }
 
     public RealtimeDirectory(SegmentIdentifier segmentIdentifier, File basePersistDir,
-                              LuceneDocumentBuilder docBuilder, int maxDocsPerSegment) throws IOException {
+                             LuceneDocumentBuilder docBuilder, InputRowParser parser, int maxDocsPerSegment) throws IOException {
         this.segmentIdentifier = segmentIdentifier;
         this.docBuilder = docBuilder;
         this.maxRowsPerSegment = maxDocsPerSegment;
         this.isOpen = true;
+        this.dimensions = new HashMap<>();
+        DimensionsSpec dimensionsSpec = getDimensionsSpec(parser);
+        for (DimensionSchema dim: dimensionsSpec.getDimensions()) {
+            dimensions.put(dim.getName(), dim.getValueType());
+        }
 
         persistDir = computePersistDir(basePersistDir, segmentIdentifier);
         persistDir.mkdirs();
         persistWriter = buildPersistWriter(FSDirectory.open(persistDir.toPath()));
         reset();
+    }
+
+    private DimensionsSpec getDimensionsSpec(InputRowParser parser) {
+        DimensionsSpec dimensionsSpec;
+        if (parser != null
+                && parser.getParseSpec() != null
+                && parser.getParseSpec().getDimensionsSpec() != null) {
+            dimensionsSpec = parser.getParseSpec().getDimensionsSpec();
+        } else {
+            dimensionsSpec = new DimensionsSpec(null, null, null);
+        }
+
+        return dimensionsSpec;
     }
 
     private void ensureOpen() {
@@ -243,8 +263,8 @@ public class RealtimeDirectory implements LuceneDirectory {
     }
 
     @Override
-    public Map<String, ValueType> getFieldTypes() {
-        return null;
+    public Map<String, DimensionSchema.ValueType> getFieldTypes() {
+        return dimensions;
     }
 
     @Override

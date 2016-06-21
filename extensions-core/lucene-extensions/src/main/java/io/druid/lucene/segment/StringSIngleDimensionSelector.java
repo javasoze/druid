@@ -1,5 +1,6 @@
 package io.druid.lucene.segment;
 
+import io.druid.lucene.query.groupby.LuceneCursor;
 import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.util.BytesRef;
 
@@ -11,14 +12,16 @@ import java.util.List;
  */
 public class StringSIngleDimensionSelector implements DimensionSelector<Integer> {
     private SortedDocValues docValues;
+    private LuceneCursor cursor;
 
-    public StringSIngleDimensionSelector(SortedDocValues docValues) {
+    public StringSIngleDimensionSelector(LuceneCursor cursor, SortedDocValues docValues) {
         this.docValues = docValues;
+        this.cursor = cursor;
     }
 
     @Override
-    public List<Integer> getRow(int doc) {
-        int ord = docValues.getOrd(doc);
+    public List<Integer> getRow() {
+        int ord = docValues.getOrd(cursor.getCurrentDoc());
         return Arrays.asList(ord);
     }
 

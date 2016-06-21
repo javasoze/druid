@@ -18,8 +18,8 @@
  */
 package io.druid.lucene.segment.loading;
 
+import io.druid.data.input.impl.DimensionSchema;
 import io.druid.lucene.LuceneDirectory;
-import io.druid.segment.column.ValueType;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.store.FSDirectory;
@@ -49,7 +49,7 @@ public class ReadOnlyDirectory implements LuceneDirectory {
     }
 
     @Override
-    public Map<String, ValueType> getFieldTypes() {
+    public Map<String, DimensionSchema.ValueType> getFieldTypes() {
         return null;
     }
 
