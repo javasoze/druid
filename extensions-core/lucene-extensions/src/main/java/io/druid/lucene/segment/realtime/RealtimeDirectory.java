@@ -35,6 +35,7 @@ import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.RAMDirectory;
+import org.joda.time.Interval;
 
 import java.io.File;
 import java.io.IOException;
@@ -265,6 +266,11 @@ public class RealtimeDirectory implements LuceneDirectory {
     @Override
     public Map<String, DimensionSchema.ValueType> getFieldTypes() {
         return dimensions;
+    }
+
+    @Override
+    public Interval getDataInterval() {
+        return null;
     }
 
     @Override

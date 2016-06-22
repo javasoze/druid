@@ -44,7 +44,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   private final SearchSortSpec sortSpec;
   private final QueryGranularity granularity;
   private final List<DimensionSpec> dimensions;
-  private final SearchQuerySpec querySpec;
   private final int limit;
 
   @JsonCreator
@@ -55,7 +54,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
       @JsonProperty("limit") int limit,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("searchDimensions") List<DimensionSpec> dimensions,
-      @JsonProperty("query") SearchQuerySpec querySpec,
       @JsonProperty("sort") SearchSortSpec sortSpec,
       @JsonProperty("context") Map<String, Object> context
   )
@@ -66,10 +64,8 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
     this.limit = (limit == 0) ? 1000 : limit;
     this.dimensions = dimensions;
-    this.querySpec = querySpec;
 
     Preconditions.checkNotNull(querySegmentSpec, "Must specify an interval");
-    Preconditions.checkNotNull(querySpec, "Must specify a query");
   }
 
   @Override
@@ -94,7 +90,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         limit,
         spec,
         dimensions,
-        querySpec,
         sortSpec,
         getContext()
     );
@@ -110,7 +105,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         limit,
         getQuerySegmentSpec(),
         dimensions,
-        querySpec,
         sortSpec,
         getContext()
     );
@@ -126,7 +120,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         limit,
         getQuerySegmentSpec(),
         dimensions,
-        querySpec,
         sortSpec,
         computeOverridenContext(contextOverrides)
     );
@@ -141,7 +134,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         limit,
         getQuerySegmentSpec(),
         dimensions,
-        querySpec,
         sortSpec,
         getContext()
     );
@@ -171,12 +163,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     return dimensions;
   }
 
-  @JsonProperty("query")
-  public SearchQuerySpec getQuery()
-  {
-    return querySpec;
-  }
-
   @JsonProperty("sort")
   public SearchSortSpec getSort()
   {
@@ -192,7 +178,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         newLimit,
         getQuerySegmentSpec(),
         dimensions,
-        querySpec,
         sortSpec,
         getContext()
     );
@@ -206,7 +191,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         ", dimFilter=" + dimFilter +
         ", granularity='" + granularity + '\'' +
         ", dimensions=" + dimensions +
-        ", querySpec=" + querySpec +
         ", querySegmentSpec=" + getQuerySegmentSpec() +
         ", limit=" + limit +
         '}';
@@ -225,7 +209,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     if (dimFilter != null ? !dimFilter.equals(that.dimFilter) : that.dimFilter != null) return false;
     if (dimensions != null ? !dimensions.equals(that.dimensions) : that.dimensions != null) return false;
     if (granularity != null ? !granularity.equals(that.granularity) : that.granularity != null) return false;
-    if (querySpec != null ? !querySpec.equals(that.querySpec) : that.querySpec != null) return false;
     if (sortSpec != null ? !sortSpec.equals(that.sortSpec) : that.sortSpec != null) return false;
 
     return true;
@@ -239,7 +222,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     result = 31 * result + (sortSpec != null ? sortSpec.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
     result = 31 * result + (dimensions != null ? dimensions.hashCode() : 0);
-    result = 31 * result + (querySpec != null ? querySpec.hashCode() : 0);
     result = 31 * result + limit;
     return result;
   }

@@ -21,6 +21,7 @@ package io.druid.lucene;
 
 import io.druid.data.input.impl.DimensionSchema;
 import org.apache.lucene.index.IndexReader;
+import org.joda.time.Interval;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -34,4 +35,6 @@ public interface LuceneDirectory extends Closeable{
     IndexReader getIndexReader() throws IOException;
 
     Map<String, DimensionSchema.ValueType> getFieldTypes();
+
+    Interval getDataInterval();
 }
