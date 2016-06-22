@@ -1,12 +1,15 @@
 package io.druid.lucene.segment;
 
-import java.nio.ByteBuffer;
-
 /**
  */
-public abstract class LongDimensionSelector implements DimensionSelector<Long> {
+public abstract class LongDimensionSelector implements DimensionSelector<Long, Long> {
+    protected long NO_VALUE_FOR_ROW = Long.MAX_VALUE;
+
     @Override
     public String lookupName(Long id) {
+        if(id == NO_VALUE_FOR_ROW) {
+            return null;
+        }
         return String.valueOf(id);
     }
 

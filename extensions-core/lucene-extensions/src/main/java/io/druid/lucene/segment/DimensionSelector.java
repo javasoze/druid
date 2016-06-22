@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  */
-public interface DimensionSelector<T> {
+public interface DimensionSelector<T, V> {
     public enum Type {
         LONG,
         INT,
@@ -18,7 +18,9 @@ public interface DimensionSelector<T> {
      *
      * @return all values for the row as an IntBuffer
      */
-    public List<T> getRow();
+    public List<T> getIds();
+
+    public List<V> getValues();
 
     /**
      * The Name is the String name of the actual field.  It is assumed that storage layers convert names

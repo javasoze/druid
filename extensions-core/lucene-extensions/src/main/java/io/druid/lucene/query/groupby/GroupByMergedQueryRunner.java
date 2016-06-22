@@ -38,8 +38,8 @@ import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
+import io.druid.lucene.segment.incremental.IncrementalIndex;
 import io.druid.query.*;
-import io.druid.segment.incremental.IncrementalIndex;
 
 import java.nio.ByteBuffer;
 import java.util.List;

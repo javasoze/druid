@@ -17,37 +17,28 @@
  * under the License.
  */
 
-package io.druid.lucene.aggregation;
+package io.druid.lucene.segment.incremental;
 
-import io.druid.lucene.segment.DimensionSelector;
+import java.io.IOException;
 
-import java.nio.ByteBuffer;
-
-/**
- */
-public class LongSumBufferAggregator extends BaseLongBufferAggregator
+public class IndexSizeExceededException extends IOException
 {
-  public LongSumBufferAggregator(
-      DimensionSelector selector
-  )
+  public IndexSizeExceededException()
   {
-    super(selector);
   }
 
-
-  @Override
-  public void init(ByteBuffer buf, int position) {
-    buf.putLong(position, 0L);
+  public IndexSizeExceededException(String formatText, Object... arguments)
+  {
+    super(String.format(formatText, arguments));
   }
 
-  @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public IndexSizeExceededException(Throwable cause, String formatText, Object... arguments)
   {
-    long[] vals = getValue(0L);
-    long rowSum = 0L;
-    for (long val: vals) {
-      rowSum += val;
-    }
-    buf.putLong(position, buf.getLong(position) + rowSum);
+    super(String.format(formatText, arguments), cause);
+  }
+
+  public IndexSizeExceededException(Throwable cause)
+  {
+    super(cause);
   }
 }

@@ -5,7 +5,7 @@ import io.druid.data.input.impl.DimensionSchema;
 import io.druid.lucene.segment.DimensionSelector;
 import io.druid.lucene.segment.FloatSingleDimensionSelector;
 import io.druid.lucene.segment.LongSingleDimensionSelector;
-import io.druid.lucene.segment.StringSIngleDimensionSelector;
+import io.druid.lucene.segment.StringSingleDimensionSelector;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.solr.search.DocIterator;
@@ -15,11 +15,12 @@ import java.util.Map;
 
 /**
  */
-public class LuceneCursor{
+public class LuceneCursor implements LuceneColumnSelectorFactory {
     private final LeafReader leafReader;
     private final Map<String, DimensionSchema.ValueType> dimTypes;
     private DocIterator docIterator;
     private int curDoc = DocIdSetIterator.NO_MORE_DOCS;
+    private int nextDoc = DocIdSetIterator.NO_MORE_DOCS;
     private boolean isDone;
 
     public LuceneCursor(LeafReader leafReader, Map<String, DimensionSchema.ValueType> dimTypes) {
@@ -28,7 +29,7 @@ public class LuceneCursor{
         this.isDone = false;
     }
 
-    public DimensionSelector<Long> makeTimestampSelector() {
+    public DimensionSelector<Long, Long> makeTimestampSelector() {
         try {
             DimensionSelector selector = new LongSingleDimensionSelector(this, leafReader.getNumericDocValues("_timestamp"));
             return selector;
@@ -52,7 +53,7 @@ public class LuceneCursor{
                     selector = new FloatSingleDimensionSelector(this, leafReader.getNumericDocValues(dim));
                     break;
                 case STRING:
-                    selector = new StringSIngleDimensionSelector(this, leafReader.getSortedDocValues(dim));
+                    selector = new StringSingleDimensionSelector(this, leafReader.getSortedDocValues(dim));
                     break;
                 default:
                     break;
@@ -69,19 +70,21 @@ public class LuceneCursor{
 
     public void reset(DocIterator docIterator) {
         this.docIterator = docIterator;
-        isDone = false;
-        advance();
+        if (docIterator.hasNext()) {
+            curDoc = docIterator.nextDoc();
+        }
     }
 
     public void advance() {
         boolean hasNext = docIterator.hasNext();
         if (hasNext) {
             curDoc = docIterator.nextDoc();
+        } else {
+            curDoc = DocIdSetIterator.NO_MORE_DOCS;
         }
-        isDone = !docIterator.hasNext();
     }
 
     public boolean isDone() {
-        return isDone;
+        return curDoc == DocIdSetIterator.NO_MORE_DOCS;
     }
 }

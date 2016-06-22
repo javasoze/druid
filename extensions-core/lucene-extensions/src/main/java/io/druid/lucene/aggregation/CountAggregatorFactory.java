@@ -24,9 +24,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Longs;
-import io.druid.lucene.query.groupby.LuceneCursor;
-import io.druid.query.aggregation.*;
-import io.druid.segment.ColumnSelectorFactory;
+import io.druid.lucene.query.groupby.LuceneColumnSelectorFactory;
+import io.druid.query.aggregation.Aggregator;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.BufferAggregator;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -50,8 +51,13 @@ public class CountAggregatorFactory extends LuceneAggregatorFactory
   }
 
   @Override
-  public BufferAggregator factorizeBuffered(LuceneCursor cursor) {
+  public BufferAggregator factorizeBuffered(LuceneColumnSelectorFactory cursor) {
     return new CountBufferAggregator();
+  }
+
+  @Override
+  public Aggregator factorize(LuceneColumnSelectorFactory cursor) {
+    return new CountAggregator(name);
   }
 
   @Override

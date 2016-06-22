@@ -29,6 +29,7 @@ import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.segment.ColumnSelectorFactory;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -37,15 +38,15 @@ import java.util.List;
 
 /**
  */
-public class LongSumAggregatorFactory extends LuceneAggregatorFactory
+public class LongMinAggregatorFactory extends LuceneAggregatorFactory
 {
-  private static final byte CACHE_TYPE_ID = 0x1;
+  private static final byte CACHE_TYPE_ID = 0xB;
 
   private final String fieldName;
   private final String name;
 
   @JsonCreator
-  public LongSumAggregatorFactory(
+  public LongMinAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") final String fieldName
   )
@@ -59,22 +60,23 @@ public class LongSumAggregatorFactory extends LuceneAggregatorFactory
 
   @Override
   public BufferAggregator factorizeBuffered(LuceneColumnSelectorFactory cursor) {
-    return new LongSumBufferAggregator(cursor.makeDimensionSelector(fieldName));
+    return new LongMinBufferAggregator(cursor.makeDimensionSelector(fieldName));
   }
 
   @Override
   public Aggregator factorize(LuceneColumnSelectorFactory cursor) {
-    return new LongSumAggregator(name, cursor.makeDimensionSelector(fieldName));
+    return new LongMinAggregator(name, cursor.makeDimensionSelector(fieldName));
   }
 
   @Override
   public Comparator getComparator()
   {
-    return LongSumAggregator.COMPARATOR;
+    return LongMinAggregator.COMPARATOR;
   }
 
-  static long combineValues(Object lhs, Object rhs) {
-    return ((Number) lhs).longValue() + ((Number) rhs).longValue();
+  static long combineValues(Object lhs, Object rhs)
+  {
+    return Math.min(((Number) lhs).longValue(), ((Number) rhs).longValue());
   }
 
   @Override
@@ -86,7 +88,7 @@ public class LongSumAggregatorFactory extends LuceneAggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new LongSumAggregatorFactory(name, name);
+    return new LongMinAggregatorFactory(name, name);
   }
 
   @Override
@@ -102,7 +104,7 @@ public class LongSumAggregatorFactory extends LuceneAggregatorFactory
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    return Arrays.<AggregatorFactory>asList(new LongSumAggregatorFactory(fieldName, fieldName));
+    return Arrays.<AggregatorFactory>asList(new LongMinAggregatorFactory(fieldName, fieldName));
   }
 
   @Override
@@ -159,13 +161,13 @@ public class LongSumAggregatorFactory extends LuceneAggregatorFactory
   @Override
   public Object getAggregatorStartValue()
   {
-    return 0;
+    return Long.MAX_VALUE;
   }
 
   @Override
   public String toString()
   {
-    return "LongSumAggregatorFactory{" +
+    return "LongMinAggregatorFactory{" +
            "fieldName='" + fieldName + '\'' +
            ", name='" + name + '\'' +
            '}';
@@ -174,21 +176,13 @@ public class LongSumAggregatorFactory extends LuceneAggregatorFactory
   @Override
   public boolean equals(Object o)
   {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
 
-    LongSumAggregatorFactory that = (LongSumAggregatorFactory) o;
+    LongMinAggregatorFactory that = (LongMinAggregatorFactory) o;
 
-    if (fieldName != null ? !fieldName.equals(that.fieldName) : that.fieldName != null) {
-      return false;
-    }
-    if (name != null ? !name.equals(that.name) : that.name != null) {
-      return false;
-    }
+    if (fieldName != null ? !fieldName.equals(that.fieldName) : that.fieldName != null) return false;
+    if (name != null ? !name.equals(that.name) : that.name != null) return false;
 
     return true;
   }
@@ -200,4 +194,6 @@ public class LongSumAggregatorFactory extends LuceneAggregatorFactory
     result = 31 * result + (name != null ? name.hashCode() : 0);
     return result;
   }
+
+
 }

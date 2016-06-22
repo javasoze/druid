@@ -19,84 +19,74 @@
 
 package io.druid.lucene.aggregation;
 
-import com.google.common.primitives.Longs;
 import io.druid.lucene.segment.DimensionSelector;
 import io.druid.query.aggregation.Aggregator;
-import io.druid.segment.LongColumnSelector;
 
 import java.util.Comparator;
 
 /**
  */
-public class LongSumAggregator extends BaseLongAggregator
+public class LongMinAggregator extends BaseLongAggregator
 {
-  static final Comparator COMPARATOR = new Comparator()
-  {
-    @Override
-    public int compare(Object o, Object o1)
-    {
-      return Longs.compare(((Number) o).longValue(), ((Number) o1).longValue());
-    }
-  };
+  static final Comparator COMPARATOR = LongSumAggregator.COMPARATOR;
 
   private final DimensionSelector selector;
   private final String name;
 
-  private long sum;
+  private long min;
 
-  public LongSumAggregator(String name, DimensionSelector selector)
+  public LongMinAggregator(String name, DimensionSelector selector)
   {
     super(selector);
     this.name = name;
     this.selector = selector;
-    this.sum = 0;
+
+    reset();
   }
 
   @Override
   public void aggregate()
   {
     long[] vals = getValue(0L);
-    long rowSum = 0L;
     for (long val: vals) {
-      rowSum += val;
+      min = Math.min(min, val);
     }
-    sum += rowSum;
   }
 
   @Override
   public void reset()
   {
-    sum = 0;
+    min = Long.MAX_VALUE;
   }
 
   @Override
   public Object get()
   {
-    return sum;
+    return min;
   }
 
   @Override
   public float getFloat()
   {
-    return (float) sum;
+    return (float) min;
   }
 
   @Override
   public long getLong()
   {
-    return sum;
+    return min;
   }
 
   @Override
   public String getName()
   {
-    return name;
+    return this.name;
   }
 
   @Override
   public Aggregator clone()
   {
-    return new LongSumAggregator(name, selector);
+    return new LongMinAggregator(name, selector);
   }
 
   @Override

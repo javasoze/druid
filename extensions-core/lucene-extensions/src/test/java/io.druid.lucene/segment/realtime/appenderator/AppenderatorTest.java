@@ -30,6 +30,7 @@ import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
+import io.druid.lucene.aggregation.LongMaxAggregatorFactory;
 import io.druid.lucene.aggregation.LongSumAggregatorFactory;
 import io.druid.lucene.aggregation.LuceneAggregatorFactory;
 import io.druid.lucene.query.groupby.GroupByQuery;
@@ -118,7 +119,7 @@ public class AppenderatorTest {
             final Appenderator appenderator = tester.getAppenderator();
 
             appenderator.startJob();
-            appenderator.add(IDENTIFIERS.get(0), IR("2000", "foo", 1), Suppliers.ofInstance(Committers.nil()));
+            appenderator.add(IDENTIFIERS.get(0), IR("2000", "foo", 21), Suppliers.ofInstance(Committers.nil()));
             appenderator.add(IDENTIFIERS.get(0), IR("2000", "bar", 2), Suppliers.ofInstance(Committers.nil()));
             appenderator.add(IDENTIFIERS.get(1), IR("2000", "bar", 4), Suppliers.ofInstance(Committers.nil()));
             appenderator.add(IDENTIFIERS.get(2), IR("2001", "foo", 8), Suppliers.ofInstance(Committers.nil()));
@@ -127,7 +128,6 @@ public class AppenderatorTest {
 
             Thread.sleep(5000);
 
-
             QuerySegmentSpec firstToThird = new MultipleIntervalSegmentSpec(
                     Arrays.asList(new Interval("1999-04-01T00:00:00.000Z/2011-04-03T00:00:00.000Z")));
             QueryGranularity dayGran = QueryGranularities.DAY;
@@ -135,10 +135,10 @@ public class AppenderatorTest {
                     .builder()
                     .setDataSource(AppenderatorTester.DATASOURCE)
                     .setQuerySegmentSpec(firstToThird)
-                    .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("dim", "bar")))
+                    .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("dim", "dim")))
                     .setAggregatorSpecs(
                             Arrays.<LuceneAggregatorFactory>asList(
-                                    new LongSumAggregatorFactory("idx", "dim")
+                                    new LongMaxAggregatorFactory("idx", "val")
                             )
                     )
                     .setQuery("dim:foo")
@@ -153,6 +153,7 @@ public class AppenderatorTest {
                     .build();
             final List<Result<LuceneQueryResultValue>> results1 = Lists.newArrayList();
             Sequences.toList(query.run(appenderator, ImmutableMap.<String, Object>of()), results1);
+            System.out.println(results1);
 //            // Query1: foo/bar
 //            final GroupByQuery query1 = new GroupByQuery(
 //                    new TableDataSource(AppenderatorTester.DATASOURCE),
@@ -195,11 +196,11 @@ public class AppenderatorTest {
     {
         return new MapBasedInputRow(
                 new DateTime(ts).getMillis(),
-                ImmutableList.of("dim", "met"),
+                ImmutableList.of("dim", "val"),
                 ImmutableMap.<String, Object>of(
                         "dim",
                         dim,
-                        "met",
+                        "val",
                         met
                 )
         );

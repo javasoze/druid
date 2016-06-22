@@ -31,10 +31,7 @@ import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.core.LoggingEmitter;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.concurrent.Execs;
-import io.druid.data.input.impl.DimensionsSpec;
-import io.druid.data.input.impl.JSONParseSpec;
-import io.druid.data.input.impl.MapInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.*;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.lucene.query.groupby.*;
@@ -144,7 +141,10 @@ public class AppenderatorTester implements AutoCloseable {
                         new JSONParseSpec(
                                 new TimestampSpec("ts", "auto", null),
                                 new DimensionsSpec(
-                                        DimensionsSpec.getDefaultSchemas(Arrays.asList("dim")),
+                                        Arrays.asList(
+                                            new StringDimensionSchema("dim"),
+                                            new LongDimensionSchema("val")
+                                        ),
                                         null,
                                         null)
                         )
@@ -156,7 +156,6 @@ public class AppenderatorTester implements AutoCloseable {
                 parserMap,
                 new AggregatorFactory[]{
                         new CountAggregatorFactory("count"),
-                        new LongSumAggregatorFactory("met", "met")
                 },
                 new UniformGranularitySpec(Granularity.MINUTE, QueryGranularities.NONE, null),
                 objectMapper

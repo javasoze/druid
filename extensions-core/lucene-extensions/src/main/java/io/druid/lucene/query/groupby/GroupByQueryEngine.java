@@ -52,7 +52,6 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.solr.search.DocIterator;
 import org.apache.solr.search.DocSet;
 import org.apache.solr.search.DocSetCollector;
 import org.joda.time.Interval;
@@ -204,7 +203,7 @@ public class GroupByQueryEngine
         List<ByteBuffer> unaggregatedBuffers = null;
 
         final DimensionSelector dimSelector = dims.get(0);
-        final List row = dimSelector.getRow();
+        final List row = dimSelector.getIds();
         for (Object value: row) {
           ByteBuffer newKey = key.duplicate();
           switch (dimSelector.getType()) {
@@ -320,7 +319,7 @@ public class GroupByQueryEngine
     private final int maxIntermediateRows;
 
     private final List<DimensionSpec> dimensionSpecs;
-    private final DimensionSelector<Long> timestamp;
+    private final DimensionSelector<Long, Long> timestamp;
     private final List<DimensionSelector> dimensions;
     private final ArrayList<String> dimNames;
     private final BufferAggregator[] aggregators;
@@ -416,7 +415,7 @@ public class GroupByQueryEngine
 
       while (!cursor.isDone() && rowUpdater.getNumRows() < maxIntermediateRows) {
         ByteBuffer key = ByteBuffer.allocate(dimensions.size() * Ints.BYTES + Longs.BYTES);
-        long time = query.getGranularity().next(timestamp.getRow().get(0));
+        long time = query.getGranularity().next(timestamp.getIds().get(0));
         key.putLong(time);
         unprocessedKeys = rowUpdater.updateValues(key, dimensions);
         if (unprocessedKeys != null) {

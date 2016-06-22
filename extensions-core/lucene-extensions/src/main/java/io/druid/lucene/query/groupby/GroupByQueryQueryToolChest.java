@@ -20,7 +20,6 @@
 package io.druid.lucene.query.groupby;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
@@ -39,6 +38,7 @@ import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularity;
 import io.druid.guice.annotations.Global;
 import io.druid.lucene.aggregation.LuceneAggregatorFactory;
+import io.druid.lucene.segment.incremental.IncrementalIndex;
 import io.druid.query.*;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
@@ -46,7 +46,6 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.segment.incremental.IncrementalIndex;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;

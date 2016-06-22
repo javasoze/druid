@@ -20,34 +20,34 @@
 package io.druid.lucene.aggregation;
 
 import io.druid.lucene.segment.DimensionSelector;
+import io.druid.query.aggregation.BufferAggregator;
+import io.druid.segment.LongColumnSelector;
 
 import java.nio.ByteBuffer;
 
 /**
  */
-public class LongSumBufferAggregator extends BaseLongBufferAggregator
+public class LongMaxBufferAggregator extends BaseLongBufferAggregator
 {
-  public LongSumBufferAggregator(
-      DimensionSelector selector
-  )
+  public LongMaxBufferAggregator(DimensionSelector selector)
   {
     super(selector);
   }
 
-
   @Override
-  public void init(ByteBuffer buf, int position) {
-    buf.putLong(position, 0L);
+  public void init(ByteBuffer buf, int position)
+  {
+    buf.putLong(position, Long.MIN_VALUE);
   }
 
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
     long[] vals = getValue(0L);
-    long rowSum = 0L;
+    long max = buf.getLong(position);
     for (long val: vals) {
-      rowSum += val;
+      max = Math.max(max, val);
     }
-    buf.putLong(position, buf.getLong(position) + rowSum);
+    buf.putLong(position, max);
   }
 }
