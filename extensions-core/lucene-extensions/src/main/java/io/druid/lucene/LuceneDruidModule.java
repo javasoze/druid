@@ -23,28 +23,46 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
-
+import com.google.inject.multibindings.MapBinder;
 import io.druid.guice.DruidBinders;
+import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.initialization.DruidModule;
+import io.druid.lucene.query.groupby.*;
 import io.druid.lucene.segment.LuceneDruidQuery;
 import io.druid.lucene.segment.LuceneQueryRunnerFactory;
 import io.druid.lucene.segment.LuceneQueryToolChest;
-import io.druid.segment.realtime.appenderator.AppenderatorPlumberSchool;
+import io.druid.lucene.segment.realtime.LuceneAppenderatorFactory;
+import io.druid.query.Query;
+import io.druid.query.QueryRunnerFactory;
+import io.druid.query.QueryToolChest;
 
 import java.util.List;
+import java.util.Map;
 
 public class LuceneDruidModule implements DruidModule
 {
+
+  private static final Map<Class<? extends Query>, Class<? extends QueryRunnerFactory>> queryRunnerMappings =
+          ImmutableMap.<Class<? extends Query>, Class<? extends QueryRunnerFactory>>builder()
+                  .put(GroupByQuery.class, GroupByQueryRunnerFactory.class)
+                  .build();
+
+  private static final Map<Class<? extends Query>, Class<? extends QueryToolChest>> toolChestMappings =
+          ImmutableMap.<Class<? extends Query>, Class<? extends QueryToolChest>>builder()
+                  .put(GroupByQuery.class, GroupByQueryQueryToolChest.class)
+                  .build();
+
   @Override
   public List<? extends Module> getJacksonModules()
   {
     return ImmutableList.of(
         new SimpleModule(LuceneDruidModule.class.getSimpleName())
             .registerSubtypes(
-                new NamedType(AppenderatorPlumberSchool.class, "appenderator"),
-                new NamedType(LuceneDruidQuery.class, "lucene")
+                new NamedType(LuceneAppenderatorFactory.class, "lucene"),
+                new NamedType(GroupByQuery.class, "lucene_groupby")
             )
     );
   }
@@ -59,7 +77,28 @@ public class LuceneDruidModule implements DruidModule
                 .addBinding(LuceneDruidQuery.class)
                 .to(LuceneQueryToolChest.class);
 
+    final MapBinder<Class<? extends Query>, QueryRunnerFactory> queryFactoryBinder = DruidBinders.queryRunnerFactoryBinder(
+            binder
+    );
+
+    for (Map.Entry<Class<? extends Query>, Class<? extends QueryRunnerFactory>> entry : queryRunnerMappings.entrySet()) {
+      queryFactoryBinder.addBinding(entry.getKey()).to(entry.getValue());
+      binder.bind(entry.getValue()).in(LazySingleton.class);
+    }
+
+    MapBinder<Class<? extends Query>, QueryToolChest> toolChests = DruidBinders.queryToolChestBinder(binder);
+
+    for (Map.Entry<Class<? extends Query>, Class<? extends QueryToolChest>> entry : toolChestMappings.entrySet()) {
+      toolChests.addBinding(entry.getKey()).to(entry.getValue());
+      binder.bind(entry.getValue()).in(LazySingleton.class);
+    }
+
     binder.bind(LuceneQueryRunnerFactory.class).in(LazySingleton.class);
     binder.bind(LuceneQueryToolChest.class).in(LazySingleton.class);
+
+    binder.bind(GroupByQueryEngine.class).in(LazySingleton.class);
+
+    JsonConfigProvider.bind(binder, "druid.lucene.query.groupBy", GroupByQueryConfig.class);
+
   }
 }
