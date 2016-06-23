@@ -31,23 +31,11 @@ import io.druid.data.input.MapBasedInputRow;
 import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
 import io.druid.lucene.aggregation.LongMaxAggregatorFactory;
-import io.druid.lucene.aggregation.LongSumAggregatorFactory;
 import io.druid.lucene.aggregation.LuceneAggregatorFactory;
 import io.druid.lucene.query.groupby.GroupByQuery;
-import io.druid.lucene.segment.LuceneDruidQuery;
-import io.druid.lucene.segment.LuceneQueryResultValue;
 import io.druid.query.Query;
-import io.druid.query.Result;
-import io.druid.query.TableDataSource;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.groupby.orderby.DefaultLimitSpec;
-import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.query.ordering.StringComparators;
-import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.realtime.appenderator.Appenderator;
@@ -151,7 +139,7 @@ public class AppenderatorTest {
 //                            )
 //                    )
                     .build();
-            final List<Result<LuceneQueryResultValue>> results1 = Lists.newArrayList();
+            final List results1 = Lists.newArrayList();
             Sequences.toList(query.run(appenderator, ImmutableMap.<String, Object>of()), results1);
             System.out.println(results1);
 //            // Query1: foo/bar
