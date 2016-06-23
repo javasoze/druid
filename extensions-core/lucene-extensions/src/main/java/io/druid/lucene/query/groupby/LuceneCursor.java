@@ -84,6 +84,10 @@ public class LuceneCursor implements LuceneColumnSelectorFactory {
         }
     }
 
+    public int advanceTo(int offset) {
+        return 0;
+    }
+
     public boolean isDone() {
         return curDoc == DocIdSetIterator.NO_MORE_DOCS;
     }
