@@ -41,6 +41,9 @@ public class LuceneDocumentBuilder
   public Document buildLuceneDocument(InputRow row) {
     Set<String> excludedDimensions = dimensionsSpec.getDimensionExclusions();
     Document doc = new Document();
+    long timestamp = row.getTimestampFromEpoch();
+    doc.add(new LongField("_timestamp", timestamp, Store.YES));
+    doc.add(new NumericDocValuesField("_timestamp", timestamp));
     for (String dimensionName : dimensionsSpec.getDimensionNames()) {
       if (excludedDimensions != null && !excludedDimensions.isEmpty() && excludedDimensions.contains(dimensionName)) {
         continue;

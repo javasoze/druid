@@ -17,40 +17,28 @@
  * under the License.
  */
 
-package io.druid.lucene.query.search.search;
+package io.druid.lucene.segment.incremental;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.IOException;
 
-/**
- */
-public class InsensitiveContainsSearchQuerySpec extends ContainsSearchQuerySpec
+public class IndexSizeExceededException extends IOException
 {
-  @JsonCreator
-  public InsensitiveContainsSearchQuerySpec(
-      @JsonProperty("value") String value
-  )
+  public IndexSizeExceededException()
   {
-    super(value, false);
   }
 
-  @Override
-  public String toString()
+  public IndexSizeExceededException(String formatText, Object... arguments)
   {
-    return "InsensitiveContainsSearchQuerySpec{" +
-           "value=" + getValue() +
-           "}";
+    super(String.format(formatText, arguments));
   }
 
-  @Override
-  public boolean equals(Object o)
+  public IndexSizeExceededException(Throwable cause, String formatText, Object... arguments)
   {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    return super.equals(o);
+    super(String.format(formatText, arguments), cause);
+  }
+
+  public IndexSizeExceededException(Throwable cause)
+  {
+    super(cause);
   }
 }

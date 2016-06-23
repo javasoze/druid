@@ -132,7 +132,6 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
       {
         final String dimFilter = query.getDimensionsFilter();
         final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getBytes();
-        final byte[] querySpecBytes = query.getQuery().getCacheKey();
         final byte[] granularityBytes = query.getGranularity().cacheKey();
 
         final Collection<DimensionSpec> dimensions = query.getDimensions() == null
@@ -153,13 +152,12 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
         final ByteBuffer queryCacheKey = ByteBuffer
             .allocate(
                 1 + 4 + granularityBytes.length + filterBytes.length +
-                querySpecBytes.length + dimensionsBytesSize + sortSpecBytes.length
+                + dimensionsBytesSize + sortSpecBytes.length
             )
             .put(SEARCH_QUERY)
             .put(Ints.toByteArray(query.getLimit()))
             .put(granularityBytes)
             .put(filterBytes)
-            .put(querySpecBytes)
             .put(sortSpecBytes)
             ;
 

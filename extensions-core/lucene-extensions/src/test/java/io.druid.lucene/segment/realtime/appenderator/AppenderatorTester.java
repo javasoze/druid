@@ -20,23 +20,23 @@
 package io.druid.lucene.segment.realtime.appenderator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.metamx.common.Granularity;
+import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.core.LoggingEmitter;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.concurrent.Execs;
-import io.druid.data.input.impl.DimensionsSpec;
-import io.druid.data.input.impl.JSONParseSpec;
-import io.druid.data.input.impl.MapInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.*;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.lucene.segment.LuceneDruidQuery;
-import io.druid.lucene.segment.LuceneQueryRunnerFactory;
+import io.druid.lucene.query.groupby.*;
 import io.druid.lucene.segment.realtime.LuceneAppenderator;
+import io.druid.offheap.OffheapBufferPool;
 import io.druid.query.*;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -70,6 +70,23 @@ public class AppenderatorTester implements AutoCloseable {
         }
     };
 
+    public static IntervalChunkingQueryRunnerDecorator NoopIntervalChunkingQueryRunnerDecorator()
+    {
+        return new IntervalChunkingQueryRunnerDecorator(null, null, null) {
+            @Override
+            public <T> QueryRunner<T> decorate(final QueryRunner<T> delegate,
+                                               QueryToolChest<T, ? extends Query<T>> toolChest) {
+                return new QueryRunner<T>() {
+                    @Override
+                    public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+                    {
+                        return delegate.run(query, responseContext);
+                    }
+                };
+            }
+        };
+    }
+
     public static final String DATASOURCE = "foo";
 
     private final DataSchema schema;
@@ -95,6 +112,27 @@ public class AppenderatorTester implements AutoCloseable {
             final File basePersistDirectory
     )
     {
+        OffheapBufferPool bufferPool = new OffheapBufferPool(250000000, Integer.MAX_VALUE);
+        OffheapBufferPool bufferPool2 = new OffheapBufferPool(250000000, Integer.MAX_VALUE);
+        final GroupByQueryConfig config = new GroupByQueryConfig();
+        config.setSingleThreaded(false);
+        config.setMaxIntermediateRows(1000000);
+        config.setMaxResults(1000000);
+
+        final Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(config);
+        final GroupByQueryEngine engine = new GroupByQueryEngine(configSupplier, bufferPool);
+
+        GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
+                engine,
+                NOOP_QUERYWATCHER,
+                configSupplier,
+                new GroupByQueryQueryToolChest(
+                        configSupplier, engine, bufferPool2,
+                        NoopIntervalChunkingQueryRunnerDecorator()
+                ),
+                bufferPool2
+        );
+
         objectMapper = new DefaultObjectMapper();
         objectMapper.registerSubtypes(LinearShardSpec.class);
 
@@ -103,7 +141,10 @@ public class AppenderatorTester implements AutoCloseable {
                         new JSONParseSpec(
                                 new TimestampSpec("ts", "auto", null),
                                 new DimensionsSpec(
-                                        DimensionsSpec.getDefaultSchemas(Arrays.asList("dim")),
+                                        Arrays.asList(
+                                            new StringDimensionSchema("dim"),
+                                            new LongDimensionSchema("val")
+                                        ),
                                         null,
                                         null)
                         )
@@ -115,7 +156,6 @@ public class AppenderatorTester implements AutoCloseable {
                 parserMap,
                 new AggregatorFactory[]{
                         new CountAggregatorFactory("count"),
-                        new LongSumAggregatorFactory("met", "met")
                 },
                 new UniformGranularitySpec(Granularity.MINUTE, QueryGranularities.NONE, null),
                 objectMapper
@@ -173,11 +213,8 @@ public class AppenderatorTester implements AutoCloseable {
                 objectMapper,
                 new DefaultQueryRunnerFactoryConglomerate(
                         ImmutableMap.<Class<? extends Query>, QueryRunnerFactory>of(
-                                LuceneDruidQuery.class, new LuceneQueryRunnerFactory(
-                                        NOOP_QUERYWATCHER
-                                )
-                        )
-                ),
+                                GroupByQuery.class, factory
+                )),
                 new DataSegmentAnnouncer()
                 {
                     @Override

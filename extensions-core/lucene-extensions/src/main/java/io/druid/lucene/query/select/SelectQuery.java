@@ -17,20 +17,18 @@
  * under the License.
  */
 
-package io.druid.lucene.query.search.search;
+package io.druid.lucene.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
-import io.druid.lucene.query.search.SearchResultValue;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.List;
@@ -38,34 +36,44 @@ import java.util.Map;
 
 /**
  */
-public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
+@JsonTypeName("select")
+public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
 {
   private final String dimFilter;
-  private final SearchSortSpec sortSpec;
   private final QueryGranularity granularity;
   private final List<DimensionSpec> dimensions;
-  private final int limit;
+  private final PagingSpec pagingSpec;
 
   @JsonCreator
-  public SearchQuery(
+  public SelectQuery(
       @JsonProperty("dataSource") DataSource dataSource,
+      @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
+      @JsonProperty("descending") boolean descending,
       @JsonProperty("filter") String dimFilter,
       @JsonProperty("granularity") QueryGranularity granularity,
-      @JsonProperty("limit") int limit,
-      @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
-      @JsonProperty("searchDimensions") List<DimensionSpec> dimensions,
-      @JsonProperty("sort") SearchSortSpec sortSpec,
+      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
+      @JsonProperty("pagingSpec") PagingSpec pagingSpec,
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    super(dataSource, querySegmentSpec, false, context);
+    super(dataSource, querySegmentSpec, descending, context);
     this.dimFilter = dimFilter;
-    this.sortSpec = sortSpec == null ? new LexicographicSearchSortSpec() : sortSpec;
-    this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
-    this.limit = (limit == 0) ? 1000 : limit;
+    this.granularity = granularity;
     this.dimensions = dimensions;
+    this.pagingSpec = pagingSpec;
 
-    Preconditions.checkNotNull(querySegmentSpec, "Must specify an interval");
+    Preconditions.checkNotNull(pagingSpec, "must specify a pagingSpec");
+    Preconditions.checkArgument(checkPagingSpec(pagingSpec, descending), "invalid pagingSpec");
+  }
+
+  private boolean checkPagingSpec(PagingSpec pagingSpec, boolean descending)
+  {
+    for (Integer value : pagingSpec.getPagingIdentifiers().values()) {
+      if (descending ^ (value < 0)) {
+        return false;
+      }
+    }
+    return pagingSpec.getThreshold() >= 0;
   }
 
   @Override
@@ -77,66 +85,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   @Override
   public String getType()
   {
-    return Query.SEARCH;
-  }
-
-  @Override
-  public SearchQuery withQuerySegmentSpec(QuerySegmentSpec spec)
-  {
-    return new SearchQuery(
-        getDataSource(),
-        dimFilter,
-        granularity,
-        limit,
-        spec,
-        dimensions,
-        sortSpec,
-        getContext()
-    );
-  }
-
-  @Override
-  public Query<Result<SearchResultValue>> withDataSource(DataSource dataSource)
-  {
-    return new SearchQuery(
-        dataSource,
-        dimFilter,
-        granularity,
-        limit,
-        getQuerySegmentSpec(),
-        dimensions,
-        sortSpec,
-        getContext()
-    );
-  }
-
-  @Override
-  public SearchQuery withOverriddenContext(Map<String, Object> contextOverrides)
-  {
-    return new SearchQuery(
-        getDataSource(),
-        dimFilter,
-        granularity,
-        limit,
-        getQuerySegmentSpec(),
-        dimensions,
-        sortSpec,
-        computeOverridenContext(contextOverrides)
-    );
-  }
-
-  public SearchQuery withDimFilter(String dimFilter)
-  {
-    return new SearchQuery(
-        getDataSource(),
-        dimFilter,
-        granularity,
-        limit,
-        getQuerySegmentSpec(),
-        dimensions,
-        sortSpec,
-        getContext()
-    );
+    return Query.SELECT;
   }
 
   @JsonProperty("filter")
@@ -152,33 +101,89 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   }
 
   @JsonProperty
-  public int getLimit()
-  {
-    return limit;
-  }
-
-  @JsonProperty("searchDimensions")
   public List<DimensionSpec> getDimensions()
   {
     return dimensions;
   }
 
-  @JsonProperty("sort")
-  public SearchSortSpec getSort()
+  @JsonProperty
+  public PagingSpec getPagingSpec()
   {
-    return sortSpec;
+    return pagingSpec;
   }
 
-  public SearchQuery withLimit(int newLimit)
+  public PagingOffset getPagingOffset(String identifier)
   {
-    return new SearchQuery(
+    return pagingSpec.getOffset(identifier, isDescending());
+  }
+
+  public SelectQuery withQuerySegmentSpec(QuerySegmentSpec querySegmentSpec)
+  {
+    return new SelectQuery(
         getDataSource(),
+        querySegmentSpec,
+        isDescending(),
         dimFilter,
         granularity,
-        newLimit,
-        getQuerySegmentSpec(),
         dimensions,
-        sortSpec,
+        pagingSpec,
+        getContext()
+    );
+  }
+
+  @Override
+  public Query<Result<SelectResultValue>> withDataSource(DataSource dataSource)
+  {
+    return new SelectQuery(
+        dataSource,
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        dimensions,
+        pagingSpec,
+        getContext()
+    );
+  }
+
+  public SelectQuery withOverriddenContext(Map<String, Object> contextOverrides)
+  {
+    return new SelectQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        dimensions,
+        pagingSpec,
+        computeOverridenContext(contextOverrides)
+    );
+  }
+
+  public SelectQuery withPagingSpec(PagingSpec pagingSpec)
+  {
+    return new SelectQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        dimensions,
+        pagingSpec,
+        getContext()
+    );
+  }
+
+  public SelectQuery withDimFilter(String dimFilter)
+  {
+    return new SelectQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        dimensions,
+        pagingSpec,
         getContext()
     );
   }
@@ -186,14 +191,15 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   @Override
   public String toString()
   {
-    return "SearchQuery{" +
-        "dataSource='" + getDataSource() + '\'' +
-        ", dimFilter=" + dimFilter +
-        ", granularity='" + granularity + '\'' +
-        ", dimensions=" + dimensions +
-        ", querySegmentSpec=" + getQuerySegmentSpec() +
-        ", limit=" + limit +
-        '}';
+    return "SelectQuery{" +
+           "dataSource='" + getDataSource() + '\'' +
+           ", querySegmentSpec=" + getQuerySegmentSpec() +
+           ", descending=" + isDescending() +
+           ", dimFilter=" + dimFilter +
+           ", granularity=" + granularity +
+           ", dimensions=" + dimensions +
+           ", pagingSpec=" + pagingSpec +
+           '}';
   }
 
   @Override
@@ -203,13 +209,12 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     if (o == null || getClass() != o.getClass()) return false;
     if (!super.equals(o)) return false;
 
-    SearchQuery that = (SearchQuery) o;
+    SelectQuery that = (SelectQuery) o;
 
-    if (limit != that.limit) return false;
     if (dimFilter != null ? !dimFilter.equals(that.dimFilter) : that.dimFilter != null) return false;
     if (dimensions != null ? !dimensions.equals(that.dimensions) : that.dimensions != null) return false;
     if (granularity != null ? !granularity.equals(that.granularity) : that.granularity != null) return false;
-    if (sortSpec != null ? !sortSpec.equals(that.sortSpec) : that.sortSpec != null) return false;
+    if (pagingSpec != null ? !pagingSpec.equals(that.pagingSpec) : that.pagingSpec != null) return false;
 
     return true;
   }
@@ -219,10 +224,9 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   {
     int result = super.hashCode();
     result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
-    result = 31 * result + (sortSpec != null ? sortSpec.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
     result = 31 * result + (dimensions != null ? dimensions.hashCode() : 0);
-    result = 31 * result + limit;
+    result = 31 * result + (pagingSpec != null ? pagingSpec.hashCode() : 0);
     return result;
   }
 }

@@ -17,24 +17,38 @@
  * under the License.
  */
 
-package io.druid.lucene;
+package io.druid.lucene.aggregation;
 
-import io.druid.data.input.impl.DimensionSchema;
-import org.apache.lucene.index.IndexReader;
-import org.joda.time.Interval;
+import io.druid.lucene.segment.DimensionSelector;
+import io.druid.query.aggregation.BufferAggregator;
+import io.druid.segment.LongColumnSelector;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.Map;
+import java.nio.ByteBuffer;
 
 /**
  */
-public interface LuceneDirectory extends Closeable{
-    int numRows();
+public class LongMinBufferAggregator extends BaseLongBufferAggregator
+{
+  public LongMinBufferAggregator(DimensionSelector selector)
+  {
+    super(selector);
+  }
 
-    IndexReader getIndexReader() throws IOException;
+  @Override
+  public void init(ByteBuffer buf, int position)
+  {
+    buf.putLong(position, Long.MAX_VALUE);
+  }
 
-    Map<String, DimensionSchema.ValueType> getFieldTypes();
 
-    Interval getDataInterval();
+  @Override
+  public void aggregate(ByteBuffer buf, int position)
+  {
+    long[] vals = getValue(0L);
+    long min = buf.getLong(position);
+    for (long val: vals) {
+      min = Math.min(min, val);
+    }
+    buf.putLong(position, min);
+  }
 }

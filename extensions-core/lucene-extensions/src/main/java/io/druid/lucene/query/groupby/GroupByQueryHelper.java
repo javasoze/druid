@@ -28,11 +28,12 @@ import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.granularity.QueryGranularity;
+import io.druid.lucene.aggregation.LuceneAggregatorFactory;
+import io.druid.lucene.segment.incremental.IncrementalIndex;
+import io.druid.lucene.segment.incremental.OffheapIncrementalIndex;
+import io.druid.lucene.segment.incremental.OnheapIncrementalIndex;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.segment.incremental.IncrementalIndex;
-import io.druid.segment.incremental.OffheapIncrementalIndex;
-import io.druid.segment.incremental.OnheapIncrementalIndex;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -90,7 +91,7 @@ public class GroupByQueryHelper
           // since incoming truncated timestamps may precede timeStart
           granTimeStart,
           gran,
-          aggs.toArray(new AggregatorFactory[aggs.size()]),
+          aggs.toArray(new LuceneAggregatorFactory[aggs.size()]),
           false,
           true,
           sortResults,
@@ -103,7 +104,7 @@ public class GroupByQueryHelper
           // since incoming truncated timestamps may precede timeStart
           granTimeStart,
           gran,
-          aggs.toArray(new AggregatorFactory[aggs.size()]),
+          aggs.toArray(new LuceneAggregatorFactory[aggs.size()]),
           false,
           true,
           sortResults,

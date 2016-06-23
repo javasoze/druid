@@ -17,23 +17,37 @@
  * under the License.
  */
 
-package io.druid.lucene.query.search.search;
+package io.druid.lucene.aggregation;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.lucene.segment.DimensionSelector;
+import io.druid.query.aggregation.BufferAggregator;
+import io.druid.segment.LongColumnSelector;
+
+import java.nio.ByteBuffer;
 
 /**
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "contains", value = ContainsSearchQuerySpec.class),
-    @JsonSubTypes.Type(name = "insensitive_contains", value = InsensitiveContainsSearchQuerySpec.class),
-    @JsonSubTypes.Type(name = "fragment", value = FragmentSearchQuerySpec.class),
-    @JsonSubTypes.Type(name = "regex", value = RegexSearchQuerySpec.class)
-})
-public interface SearchQuerySpec
+public class LongMaxBufferAggregator extends BaseLongBufferAggregator
 {
-  public boolean accept(String dimVal);
+  public LongMaxBufferAggregator(DimensionSelector selector)
+  {
+    super(selector);
+  }
 
-  public byte[] getCacheKey();
+  @Override
+  public void init(ByteBuffer buf, int position)
+  {
+    buf.putLong(position, Long.MIN_VALUE);
+  }
+
+  @Override
+  public void aggregate(ByteBuffer buf, int position)
+  {
+    long[] vals = getValue(0L);
+    long max = buf.getLong(position);
+    for (long val: vals) {
+      max = Math.max(max, val);
+    }
+    buf.putLong(position, max);
+  }
 }

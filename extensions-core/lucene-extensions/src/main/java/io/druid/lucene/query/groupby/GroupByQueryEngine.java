@@ -35,6 +35,7 @@ import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.data.input.impl.DimensionSchema;
 import io.druid.guice.annotations.Global;
 import io.druid.lucene.LuceneDirectory;
 import io.druid.lucene.aggregation.LuceneAggregatorFactory;
@@ -42,7 +43,6 @@ import io.druid.lucene.segment.DimensionSelector;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.segment.column.ValueType;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.IndexReader;
@@ -52,7 +52,6 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.solr.search.DocIterator;
 import org.apache.solr.search.DocSet;
 import org.apache.solr.search.DocSetCollector;
 import org.joda.time.Interval;
@@ -113,7 +112,7 @@ public class GroupByQueryEngine
                 }
               }
       );
-      final Map<String, ValueType> dimTypes = directory.getFieldTypes();
+      final Map<String, DimensionSchema.ValueType> dimTypes = directory.getFieldTypes();
       return Sequences.concat(
               Sequences.withBaggage(
                       Sequences.map(
@@ -196,8 +195,7 @@ public class GroupByQueryEngine
 
     private List<ByteBuffer> updateValues(
         ByteBuffer key,
-        List<DimensionSelector> dims,
-        int doc
+        List<DimensionSelector> dims
     )
     {
       if (dims.size() > 0) {
@@ -205,7 +203,7 @@ public class GroupByQueryEngine
         List<ByteBuffer> unaggregatedBuffers = null;
 
         final DimensionSelector dimSelector = dims.get(0);
-        final List row = dimSelector.getRow(doc);
+        final List row = dimSelector.getIds();
         for (Object value: row) {
           ByteBuffer newKey = key.duplicate();
           switch (dimSelector.getType()) {
@@ -221,7 +219,7 @@ public class GroupByQueryEngine
             default:
               throw new IAE("");
           }
-          unaggregatedBuffers = updateValues(newKey, dims.subList(1, dims.size()), doc);
+          unaggregatedBuffers = updateValues(newKey, dims.subList(1, dims.size()));
         }
         if (unaggregatedBuffers != null) {
           if (retVal == null) {
@@ -321,7 +319,7 @@ public class GroupByQueryEngine
     private final int maxIntermediateRows;
 
     private final List<DimensionSpec> dimensionSpecs;
-    private final DimensionSelector<Long> timestamp;
+    private final DimensionSelector<Long, Long> timestamp;
     private final List<DimensionSelector> dimensions;
     private final ArrayList<String> dimNames;
     private final BufferAggregator[] aggregators;
@@ -330,8 +328,9 @@ public class GroupByQueryEngine
 
     private List<ByteBuffer> unprocessedKeys;
     private Iterator<Row> delegate;
+    private LuceneCursor cursor;
 
-    public RowIterator(GroupByQuery query, final LeafReader leafReader, Map<String, ValueType> dimTypes, ByteBuffer metricsBuffer, GroupByQueryConfig config) throws IOException {
+    public RowIterator(GroupByQuery query, final LeafReader leafReader, Map<String, DimensionSchema.ValueType> dimTypes, ByteBuffer metricsBuffer, GroupByQueryConfig config) throws IOException {
       this.query = query;
       this.searcher = new IndexSearcher(leafReader);
       this.metricsBuffer = metricsBuffer;
@@ -349,10 +348,10 @@ public class GroupByQueryEngine
       dimensions = Lists.newArrayListWithExpectedSize(dimensionSpecs.size());
       dimNames = Lists.newArrayListWithExpectedSize(dimensionSpecs.size());
 
-      LuceneCursor cursor = new LuceneCursor(leafReader, dimTypes);
+      cursor = new LuceneCursor(leafReader, dimTypes);
       for (int i = 0; i < dimensionSpecs.size(); ++i) {
         final DimensionSpec dimSpec = dimensionSpecs.get(i);
-        DimensionSelector selector = cursor.makeDimensionSelector(dimSpec);
+        DimensionSelector selector = cursor.makeDimensionSelector(dimSpec.getDimension());
         if (selector != null) {
           dimensions.add(selector);
           dimNames.add(dimSpec.getOutputName());
@@ -360,7 +359,6 @@ public class GroupByQueryEngine
       }
 
       timestamp = cursor.makeTimestampSelector();
-
       List<LuceneAggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
       aggregators = new BufferAggregator[aggregatorSpecs.size()];
       metricNames = new String[aggregatorSpecs.size()];
@@ -377,7 +375,11 @@ public class GroupByQueryEngine
       QueryParser parser = new QueryParser("", analyzer);
       try {
         Query q = parser.parse(queryStr);
-      } catch (ParseException e) {
+        DocSetCollector collector = new DocSetCollector(100, 10000);
+        searcher.search(q, collector);
+        DocSet docSet = collector.getDocSet();
+        cursor.reset(docSet.iterator());
+      } catch (ParseException | IOException e) {
         throw new IAE("", e);
       }
     }
@@ -385,7 +387,7 @@ public class GroupByQueryEngine
     @Override
     public boolean hasNext()
     {
-      return delegate.hasNext();
+      return delegate.hasNext() || !cursor.isDone();
     }
 
     @Override
@@ -394,15 +396,6 @@ public class GroupByQueryEngine
       if (delegate.hasNext()) {
         return delegate.next();
       }
-
-      DocSetCollector collector = new DocSetCollector(1, 1);
-      try {
-        searcher.search(null, collector);
-      } catch (IOException e) {
-      }
-
-      DocSet docSet = collector.getDocSet();
-      DocIterator iterator = docSet.iterator();
 
 //      if (unprocessedKeys == null && cursor.isDone()) {
 //        throw new NoSuchElementException();
@@ -420,15 +413,16 @@ public class GroupByQueryEngine
 //        cursor.advance();
 //      }
 
-      while (iterator.hasNext() && rowUpdater.getNumRows() < maxIntermediateRows) {
-        int doc = iterator.next();
+      while (!cursor.isDone() && rowUpdater.getNumRows() < maxIntermediateRows) {
         ByteBuffer key = ByteBuffer.allocate(dimensions.size() * Ints.BYTES + Longs.BYTES);
-        long time = query.getGranularity().next(timestamp.getRow(doc).get(0));
+        long time = query.getGranularity().next(timestamp.getIds().get(0));
         key.putLong(time);
-        unprocessedKeys = rowUpdater.updateValues(key, dimensions, doc);
+        unprocessedKeys = rowUpdater.updateValues(key, dimensions);
         if (unprocessedKeys != null) {
           break;
         }
+
+        cursor.advance();
       }
 
       if (rowUpdater.getPositions().isEmpty() && unprocessedKeys != null) {
