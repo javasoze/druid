@@ -31,9 +31,6 @@ import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.initialization.DruidModule;
 import io.druid.lucene.query.groupby.*;
-import io.druid.lucene.segment.LuceneDruidQuery;
-import io.druid.lucene.segment.LuceneQueryRunnerFactory;
-import io.druid.lucene.segment.LuceneQueryToolChest;
 import io.druid.lucene.segment.realtime.LuceneAppenderatorFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerFactory;
@@ -70,12 +67,6 @@ public class LuceneDruidModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    DruidBinders.queryRunnerFactoryBinder(binder)
-                .addBinding(LuceneDruidQuery.class)
-                .to(LuceneQueryRunnerFactory.class);
-    DruidBinders.queryToolChestBinder(binder)
-                .addBinding(LuceneDruidQuery.class)
-                .to(LuceneQueryToolChest.class);
 
     final MapBinder<Class<? extends Query>, QueryRunnerFactory> queryFactoryBinder = DruidBinders.queryRunnerFactoryBinder(
             binder
@@ -92,9 +83,6 @@ public class LuceneDruidModule implements DruidModule
       toolChests.addBinding(entry.getKey()).to(entry.getValue());
       binder.bind(entry.getValue()).in(LazySingleton.class);
     }
-
-    binder.bind(LuceneQueryRunnerFactory.class).in(LazySingleton.class);
-    binder.bind(LuceneQueryToolChest.class).in(LazySingleton.class);
 
     binder.bind(GroupByQueryEngine.class).in(LazySingleton.class);
 
