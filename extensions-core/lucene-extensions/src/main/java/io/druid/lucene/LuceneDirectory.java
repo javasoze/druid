@@ -35,6 +35,4 @@ public interface LuceneDirectory extends Closeable{
     IndexReader getIndexReader() throws IOException;
 
     Map<String, DimensionSchema.ValueType> getFieldTypes();
-
-    Interval getDataInterval();
 }

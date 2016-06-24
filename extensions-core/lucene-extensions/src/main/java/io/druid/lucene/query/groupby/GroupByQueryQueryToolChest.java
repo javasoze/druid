@@ -69,20 +69,17 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   private final Supplier<GroupByQueryConfig> configSupplier;
 
   private final StupidPool<ByteBuffer> bufferPool;
-  private GroupByQueryEngine engine; // For running the outer query around a subquery
 
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
   @Inject
   public GroupByQueryQueryToolChest(
       Supplier<GroupByQueryConfig> configSupplier,
-      GroupByQueryEngine engine,
       @Global StupidPool<ByteBuffer> bufferPool,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
     this.configSupplier = configSupplier;
-    this.engine = engine;
     this.bufferPool = bufferPool;
     this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
   }

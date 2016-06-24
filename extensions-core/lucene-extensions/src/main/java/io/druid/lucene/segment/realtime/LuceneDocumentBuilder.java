@@ -25,6 +25,7 @@ import io.druid.data.input.impl.DimensionsSpec;
 
 import java.util.Set;
 
+import io.druid.segment.column.Column;
 import org.apache.lucene.document.*;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.DoubleField;
@@ -42,8 +43,8 @@ public class LuceneDocumentBuilder
     Set<String> excludedDimensions = dimensionsSpec.getDimensionExclusions();
     Document doc = new Document();
     long timestamp = row.getTimestampFromEpoch();
-    doc.add(new LongField("_timestamp", timestamp, Store.YES));
-    doc.add(new NumericDocValuesField("_timestamp", timestamp));
+    doc.add(new LongField(Column.TIME_COLUMN_NAME, timestamp, Store.YES));
+    doc.add(new NumericDocValuesField(Column.TIME_COLUMN_NAME, timestamp));
     for (String dimensionName : dimensionsSpec.getDimensionNames()) {
       if (excludedDimensions != null && !excludedDimensions.isEmpty() && excludedDimensions.contains(dimensionName)) {
         continue;

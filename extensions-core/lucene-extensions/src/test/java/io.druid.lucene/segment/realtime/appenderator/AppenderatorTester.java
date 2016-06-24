@@ -35,6 +35,15 @@ import io.druid.data.input.impl.*;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.lucene.query.groupby.*;
+import io.druid.lucene.query.search.SearchQueryQueryToolChest;
+import io.druid.lucene.query.search.SearchQueryRunner;
+import io.druid.lucene.query.search.SearchQueryRunnerFactory;
+import io.druid.lucene.query.search.search.SearchQuery;
+import io.druid.lucene.query.search.search.SearchQueryConfig;
+import io.druid.lucene.query.select.SelectQuery;
+import io.druid.lucene.query.select.SelectQueryEngine;
+import io.druid.lucene.query.select.SelectQueryQueryToolChest;
+import io.druid.lucene.query.select.SelectQueryRunnerFactory;
 import io.druid.lucene.segment.realtime.LuceneAppenderator;
 import io.druid.offheap.OffheapBufferPool;
 import io.druid.query.*;
@@ -66,7 +75,6 @@ public class AppenderatorTester implements AutoCloseable {
         @Override
         public void registerQuery(Query query, ListenableFuture future)
         {
-
         }
     };
 
@@ -127,13 +135,30 @@ public class AppenderatorTester implements AutoCloseable {
                 NOOP_QUERYWATCHER,
                 configSupplier,
                 new GroupByQueryQueryToolChest(
-                        configSupplier, engine, bufferPool2,
+                        configSupplier, bufferPool2,
                         NoopIntervalChunkingQueryRunnerDecorator()
                 ),
                 bufferPool2
         );
 
         objectMapper = new DefaultObjectMapper();
+        SelectQueryEngine engine1 = new SelectQueryEngine();
+        SelectQueryRunnerFactory factory1 = new SelectQueryRunnerFactory(
+                new SelectQueryQueryToolChest(
+                        objectMapper,
+                        NoopIntervalChunkingQueryRunnerDecorator()),
+                engine1,
+                NOOP_QUERYWATCHER
+        );
+
+        SearchQueryRunnerFactory factory2 = new SearchQueryRunnerFactory(
+                new SearchQueryQueryToolChest(
+                        new SearchQueryConfig(),
+                    NoopIntervalChunkingQueryRunnerDecorator()
+                ),
+                NOOP_QUERYWATCHER
+        );
+
         objectMapper.registerSubtypes(LinearShardSpec.class);
 
         final Map<String, Object> parserMap = objectMapper.convertValue(
@@ -213,7 +238,9 @@ public class AppenderatorTester implements AutoCloseable {
                 objectMapper,
                 new DefaultQueryRunnerFactoryConglomerate(
                         ImmutableMap.<Class<? extends Query>, QueryRunnerFactory>of(
-                                GroupByQuery.class, factory
+                                GroupByQuery.class, factory,
+                                SelectQuery.class, factory1,
+                                SearchQuery.class, factory2
                 )),
                 new DataSegmentAnnouncer()
                 {

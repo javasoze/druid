@@ -21,6 +21,8 @@ package io.druid.initialization;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.NamedType;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
@@ -32,7 +34,10 @@ import com.metamx.common.ISE;
 import io.druid.guice.ExtensionsConfig;
 import io.druid.guice.GuiceInjectors;
 import io.druid.guice.JsonConfigProvider;
+import io.druid.guice.LazySingleton;
 import io.druid.guice.annotations.Self;
+import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.server.DruidNode;
 import org.junit.Assert;
 import org.junit.FixMethodOrder;
@@ -431,13 +436,19 @@ public class InitializationTest
     @Override
     public List<? extends Module> getJacksonModules()
     {
-      return ImmutableList.of();
+      return ImmutableList.of(
+              new SimpleModule("sss")
+                      .registerSubtypes(
+                              new NamedType(GroupByQuery.class, "lucene_groupby")
+                      )
+      );
     }
 
     @Override
     public void configure(Binder binder)
     {
       // Do nothing
+      binder.bind(GroupByQueryEngine.class).in(LazySingleton.class);
     }
   }
 }

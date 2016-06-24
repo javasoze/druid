@@ -19,6 +19,10 @@
 
 package io.druid.lucene.segment.realtime.appenderator;
 
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.NamedType;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -30,10 +34,18 @@ import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
+import io.druid.jackson.DefaultObjectMapper;
+import io.druid.lucene.LuceneDruidModule;
 import io.druid.lucene.aggregation.LongMaxAggregatorFactory;
 import io.druid.lucene.aggregation.LuceneAggregatorFactory;
 import io.druid.lucene.query.groupby.GroupByQuery;
+import io.druid.lucene.query.search.search.SearchQuery;
+import io.druid.lucene.query.search.search.StrlenSearchSortSpec;
+import io.druid.lucene.query.select.PagingSpec;
+import io.druid.lucene.query.select.SelectQuery;
+import io.druid.lucene.segment.realtime.LuceneAppenderatorFactory;
 import io.druid.query.Query;
+import io.druid.query.TableDataSource;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -61,6 +73,17 @@ public class AppenderatorTest {
             SI("2000/2001", "A", 1),
             SI("2001/2002", "A", 0)
     );
+
+    @Test
+    public void test () {
+        ObjectMapper objectMapper = new DefaultObjectMapper();
+        Module m = new SimpleModule(LuceneDruidModule.class.getSimpleName())
+                .registerSubtypes(
+                        new NamedType(LuceneAppenderatorFactory.class, "lucene"),
+                        new NamedType(GroupByQuery.class, "lucene_groupby")
+                );
+        objectMapper.registerModule(m);
+    }
 
     @Test
     public void testSimpleIngestion() throws Exception
@@ -101,7 +124,7 @@ public class AppenderatorTest {
 
 
     @Test
-    public void testQuery() throws Exception
+    public void testGroupByQuery() throws Exception
     {
         try (final AppenderatorTester tester = new AppenderatorTester(10000)) {
             final Appenderator appenderator = tester.getAppenderator();
@@ -131,42 +154,79 @@ public class AppenderatorTest {
                     )
                     .setQuery("dim:foo")
                     .setGranularity(dayGran)
-//                    .setPostAggregatorSpecs(ImmutableList.<PostAggregator>of(new FieldAccessPostAggregator("x", "idx")))
-//                    .setLimitSpec(
-//                            new DefaultLimitSpec(
-//                                    ImmutableList.of(new OrderByColumnSpec("alias", OrderByColumnSpec.Direction.ASCENDING, StringComparators.LEXICOGRAPHIC)),
-//                                    100
-//                            )
-//                    )
                     .build();
             final List results1 = Lists.newArrayList();
             Sequences.toList(query.run(appenderator, ImmutableMap.<String, Object>of()), results1);
             System.out.println(results1);
-//            // Query1: foo/bar
-//            final GroupByQuery query1 = new GroupByQuery(
-//                    new TableDataSource(AppenderatorTester.DATASOURCE),
-//                    new LegacySegmentSpec(ImmutableList.of(new Interval("2000/2002"))),
-//                    null,
-//                    "dim",
-//                    "bar",
-//                    null,
-//                    1
-//            );
-//
-//            final List<Result<LuceneQueryResultValue>> results1 = Lists.newArrayList();
-//            Sequences.toList(query1.run(appenderator, ImmutableMap.<String, Object>of()), results1);
-//            Assert.assertEquals(
-//                    "query1",
-//                    ImmutableList.of(
-//                            new Result<>(
-//                                    new DateTime("2000"),
-//                                    new LuceneQueryResultValue(2, 6)
-//                            )
-//
-//                    ),
-//                    results1
-//            );
+        }
+    }
 
+    @Test
+    public void testSearchQuery() throws Exception {
+        try (final AppenderatorTester tester = new AppenderatorTester(10000)) {
+            final Appenderator appenderator = tester.getAppenderator();
+
+            appenderator.startJob();
+            appenderator.add(IDENTIFIERS.get(0), IR("2000", "foo", 21), Suppliers.ofInstance(Committers.nil()));
+            appenderator.add(IDENTIFIERS.get(0), IR("2000", "bar", 2), Suppliers.ofInstance(Committers.nil()));
+            appenderator.add(IDENTIFIERS.get(1), IR("2000", "bar", 4), Suppliers.ofInstance(Committers.nil()));
+            appenderator.add(IDENTIFIERS.get(2), IR("2001", "foo", 8), Suppliers.ofInstance(Committers.nil()));
+            appenderator.add(IDENTIFIERS.get(2), IR("2001T01", "foo", 16), Suppliers.ofInstance(Committers.nil()));
+            appenderator.add(IDENTIFIERS.get(2), IR("2001T02", "foo", 32), Suppliers.ofInstance(Committers.nil()));
+
+            Thread.sleep(5000);
+
+            QuerySegmentSpec firstToThird = new MultipleIntervalSegmentSpec(
+                    Arrays.asList(new Interval("1999-04-01T00:00:00.000Z/2011-04-03T00:00:00.000Z")));
+            QueryGranularity dayGran = QueryGranularities.DAY;
+            Query query = new SearchQuery(
+                new TableDataSource(AppenderatorTester.DATASOURCE),
+                    "dim:foo",
+                    dayGran,
+                    10,
+                firstToThird,
+                    Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("dim", "dim")),
+                new StrlenSearchSortSpec(),
+                new HashMap<String, Object>()
+            );
+
+            final List results1 = Lists.newArrayList();
+            Sequences.toList(query.run(appenderator, ImmutableMap.<String, Object>of()), results1);
+            System.out.println(results1);
+        }
+    }
+
+    @Test
+    public void testSelectQuery() throws Exception {
+        try (final AppenderatorTester tester = new AppenderatorTester(10000)) {
+            final Appenderator appenderator = tester.getAppenderator();
+
+            appenderator.startJob();
+            appenderator.add(IDENTIFIERS.get(0), IR("2000", "foo", 21), Suppliers.ofInstance(Committers.nil()));
+            appenderator.add(IDENTIFIERS.get(0), IR("2000", "bar", 2), Suppliers.ofInstance(Committers.nil()));
+            appenderator.add(IDENTIFIERS.get(1), IR("2000", "bar", 4), Suppliers.ofInstance(Committers.nil()));
+            appenderator.add(IDENTIFIERS.get(2), IR("2001", "foo", 8), Suppliers.ofInstance(Committers.nil()));
+            appenderator.add(IDENTIFIERS.get(2), IR("2001T01", "foo", 16), Suppliers.ofInstance(Committers.nil()));
+            appenderator.add(IDENTIFIERS.get(2), IR("2001T02", "foo", 32), Suppliers.ofInstance(Committers.nil()));
+
+            Thread.sleep(5000);
+
+            QuerySegmentSpec firstToThird = new MultipleIntervalSegmentSpec(
+                    Arrays.asList(new Interval("1999-04-01T00:00:00.000Z/2011-04-03T00:00:00.000Z")));
+            QueryGranularity dayGran = QueryGranularities.DAY;
+            Query query = new SelectQuery(
+                    new TableDataSource(AppenderatorTester.DATASOURCE),
+                    firstToThird,
+                    false,
+                    "dim:foo",
+                    dayGran,
+                    Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("dim", "dim")),
+                    PagingSpec.newSpec(100),
+                    new HashMap<String, Object>()
+            );
+            final List results1 = Lists.newArrayList();
+            Sequences.toList(query.run(appenderator, ImmutableMap.<String, Object>of()), results1);
+            System.out.println(results1);
         }
     }
 

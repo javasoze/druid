@@ -7,7 +7,6 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.solr.search.DocSetCollector;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -30,7 +29,7 @@ public class GroupByTest {
         List<LeafReaderContext> leaves = reader.leaves();
         for (LeafReaderContext context: leaves) {
             IndexSearcher searcher = new IndexSearcher(context.reader());
-            searcher.search(new TermQuery(new Term("", "")), new DocSetCollector(10, 100));
+//            searcher.search(new TermQuery(new Term("", "")), new DocSetCollector(10, 100));
         }
     }
 }

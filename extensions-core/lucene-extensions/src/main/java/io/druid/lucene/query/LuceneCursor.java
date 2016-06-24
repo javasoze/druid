@@ -1,16 +1,19 @@
-package io.druid.lucene.query.groupby;
+package io.druid.lucene.query;
 
 import com.metamx.common.IAE;
 import io.druid.data.input.impl.DimensionSchema;
+import io.druid.lucene.query.groupby.LuceneColumnSelectorFactory;
 import io.druid.lucene.segment.DimensionSelector;
 import io.druid.lucene.segment.FloatSingleDimensionSelector;
 import io.druid.lucene.segment.LongSingleDimensionSelector;
 import io.druid.lucene.segment.StringSingleDimensionSelector;
+import io.druid.segment.column.Column;
 import org.apache.lucene.index.LeafReader;
-import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.solr.search.DocIterator;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -18,20 +21,35 @@ import java.util.Map;
 public class LuceneCursor implements LuceneColumnSelectorFactory {
     private final LeafReader leafReader;
     private final Map<String, DimensionSchema.ValueType> dimTypes;
-    private DocIterator docIterator;
-    private int curDoc = DocIdSetIterator.NO_MORE_DOCS;
-    private int nextDoc = DocIdSetIterator.NO_MORE_DOCS;
+    private final List<Integer> docList;
+    private final int maxDocOffset;
+    private int curDocOffset = -1;
     private boolean isDone;
 
-    public LuceneCursor(LeafReader leafReader, Map<String, DimensionSchema.ValueType> dimTypes) {
+    public LuceneCursor(Query query, LeafReader leafReader, Map<String, DimensionSchema.ValueType> dimTypes) {
+        IndexSearcher searcher = new IndexSearcher(leafReader);
+        DocListCollector collector = new DocListCollector();
+        try {
+            searcher.search(query, collector);
+        } catch (IOException e) {
+            throw new IAE("");
+        }
+
+        docList = collector.getDocList();
+        maxDocOffset = docList.size() - 1;
+        if (docList.isEmpty()) {
+            isDone = true;
+        } else {
+            isDone = false;
+            curDocOffset = 0;
+        }
         this.leafReader = leafReader;
         this.dimTypes = dimTypes;
-        this.isDone = false;
     }
 
     public DimensionSelector<Long, Long> makeTimestampSelector() {
         try {
-            DimensionSelector selector = new LongSingleDimensionSelector(this, leafReader.getNumericDocValues("_timestamp"));
+            DimensionSelector selector = new LongSingleDimensionSelector(this, leafReader.getNumericDocValues(Column.TIME_COLUMN_NAME));
             return selector;
         } catch (IOException e) {
             throw new IAE("");
@@ -65,30 +83,31 @@ public class LuceneCursor implements LuceneColumnSelectorFactory {
     }
 
     public int getCurrentDoc() {
-        return curDoc;
-    }
-
-    public void reset(DocIterator docIterator) {
-        this.docIterator = docIterator;
-        if (docIterator.hasNext()) {
-            curDoc = docIterator.nextDoc();
-        }
+        return docList.get(curDocOffset);
     }
 
     public void advance() {
-        boolean hasNext = docIterator.hasNext();
-        if (hasNext) {
-            curDoc = docIterator.nextDoc();
+        if (maxDocOffset > curDocOffset ) {
+            curDocOffset++;
         } else {
-            curDoc = DocIdSetIterator.NO_MORE_DOCS;
+            isDone = true;
         }
     }
 
     public int advanceTo(int offset) {
-        return 0;
+        int resOffset = curDocOffset + offset;
+        int left = resOffset - maxDocOffset;
+        if (0 >= left) {
+            curDocOffset = resOffset;
+            return 0;
+        } else {
+            curDocOffset = maxDocOffset;
+            isDone = true;
+            return left;
+        }
     }
 
     public boolean isDone() {
-        return curDoc == DocIdSetIterator.NO_MORE_DOCS;
+        return isDone;
     }
 }

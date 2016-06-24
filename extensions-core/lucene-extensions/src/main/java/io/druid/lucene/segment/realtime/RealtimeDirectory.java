@@ -269,11 +269,6 @@ public class RealtimeDirectory implements LuceneDirectory {
     }
 
     @Override
-    public Interval getDataInterval() {
-        return null;
-    }
-
-    @Override
     public int numRows() {
         return numRowsPersisted + numRowsAdded;
     }

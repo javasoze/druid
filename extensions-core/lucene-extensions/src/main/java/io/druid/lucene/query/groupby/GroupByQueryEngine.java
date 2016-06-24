@@ -21,6 +21,7 @@ package io.druid.lucene.query.groupby;
 
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -39,11 +40,11 @@ import io.druid.data.input.impl.DimensionSchema;
 import io.druid.guice.annotations.Global;
 import io.druid.lucene.LuceneDirectory;
 import io.druid.lucene.aggregation.LuceneAggregatorFactory;
+import io.druid.lucene.query.LuceneCursor;
 import io.druid.lucene.segment.DimensionSelector;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
-import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReader;
@@ -52,8 +53,6 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.solr.search.DocSet;
-import org.apache.solr.search.DocSetCollector;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
@@ -348,7 +347,14 @@ public class GroupByQueryEngine
       dimensions = Lists.newArrayListWithExpectedSize(dimensionSpecs.size());
       dimNames = Lists.newArrayListWithExpectedSize(dimensionSpecs.size());
 
-      cursor = new LuceneCursor(leafReader, dimTypes);
+      QueryParser parser = new QueryParser("", new StandardAnalyzer());
+      try {
+        Query luceneQuery = parser.parse(query.getQuery());
+        cursor = new LuceneCursor(luceneQuery, leafReader, dimTypes);
+      } catch (ParseException e) {
+
+      }
+
       for (int i = 0; i < dimensionSpecs.size(); ++i) {
         final DimensionSpec dimSpec = dimensionSpecs.get(i);
         DimensionSelector selector = cursor.makeDimensionSelector(dimSpec.getDimension());
@@ -369,19 +375,6 @@ public class GroupByQueryEngine
         metricNames[i] = aggregatorSpec.getName();
         sizesRequired[i] = aggregatorSpec.getMaxIntermediateSize();
       }
-
-      String queryStr = query.getQuery();
-      Analyzer analyzer = new StandardAnalyzer();
-      QueryParser parser = new QueryParser("", analyzer);
-      try {
-        Query q = parser.parse(queryStr);
-        DocSetCollector collector = new DocSetCollector(100, 10000);
-        searcher.search(q, collector);
-        DocSet docSet = collector.getDocSet();
-        cursor.reset(docSet.iterator());
-      } catch (ParseException | IOException e) {
-        throw new IAE("", e);
-      }
     }
 
     @Override
@@ -397,21 +390,17 @@ public class GroupByQueryEngine
         return delegate.next();
       }
 
-//      if (unprocessedKeys == null && cursor.isDone()) {
-//        throw new NoSuchElementException();
-//      }
-//
       final PositionMaintainer positionMaintainer = new PositionMaintainer(0, sizesRequired, metricsBuffer.remaining());
       final RowUpdater rowUpdater = new RowUpdater(metricsBuffer, aggregators, positionMaintainer);
-//      if (unprocessedKeys != null) {
-//        for (ByteBuffer key : unprocessedKeys) {
-//          final List<ByteBuffer> unprocUnproc = rowUpdater.updateValues(key, ImmutableList.<DimensionSelector>of());
-//          if (unprocUnproc != null) {
-//            throw new ISE("Not enough memory to process the request.");
-//          }
-//        }
-//        cursor.advance();
-//      }
+      if (unprocessedKeys != null) {
+        for (ByteBuffer key : unprocessedKeys) {
+          final List<ByteBuffer> unprocUnproc = rowUpdater.updateValues(key, ImmutableList.<DimensionSelector>of());
+          if (unprocUnproc != null) {
+            throw new ISE("Not enough memory to process the request.");
+          }
+        }
+        cursor.advance();
+      }
 
       while (!cursor.isDone() && rowUpdater.getNumRows() < maxIntermediateRows) {
         ByteBuffer key = ByteBuffer.allocate(dimensions.size() * Ints.BYTES + Longs.BYTES);
