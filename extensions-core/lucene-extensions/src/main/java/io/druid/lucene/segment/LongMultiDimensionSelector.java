@@ -1,6 +1,6 @@
 package io.druid.lucene.segment;
 
-import io.druid.lucene.query.groupby.LuceneCursor;
+import io.druid.lucene.query.LuceneCursor;
 import org.apache.lucene.index.SortedNumericDocValues;
 
 import java.util.ArrayList;

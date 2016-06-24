@@ -47,7 +47,7 @@ public class SearchQueryRunnerFactory implements QueryRunnerFactory<Result<Searc
   @Override
   public QueryRunner<Result<SearchResultValue>> createRunner(final Segment segment)
   {
-    return new SearchQueryRunner(segment.as(LuceneDirectory.class));
+    return new SearchQueryRunner(segment);
   }
 
   @Override

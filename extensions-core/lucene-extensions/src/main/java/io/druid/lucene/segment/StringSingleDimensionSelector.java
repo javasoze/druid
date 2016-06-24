@@ -1,9 +1,8 @@
 package io.druid.lucene.segment;
 
-import io.druid.lucene.query.groupby.LuceneCursor;
+import io.druid.lucene.query.LuceneCursor;
 import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.index.SortedSetDocValues;
-import org.apache.lucene.util.BytesRef;
 
 import java.util.Arrays;
 import java.util.Collections;

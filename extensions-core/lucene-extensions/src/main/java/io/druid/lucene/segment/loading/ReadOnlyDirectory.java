@@ -55,11 +55,6 @@ public class ReadOnlyDirectory implements LuceneDirectory {
     }
 
     @Override
-    public Interval getDataInterval() {
-        return null;
-    }
-
-    @Override
     public void close() throws IOException {
         indexReader.close();
     }
