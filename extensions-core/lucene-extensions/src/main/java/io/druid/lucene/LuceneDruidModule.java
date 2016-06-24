@@ -30,11 +30,16 @@ import io.druid.guice.DruidBinders;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.initialization.DruidModule;
+import io.druid.lucene.aggregation.CountAggregatorFactory;
+import io.druid.lucene.aggregation.LongMaxAggregatorFactory;
+import io.druid.lucene.aggregation.LongMinAggregatorFactory;
+import io.druid.lucene.aggregation.LongSumAggregatorFactory;
 import io.druid.lucene.query.groupby.*;
 import io.druid.lucene.segment.LuceneDruidQuery;
 import io.druid.lucene.segment.LuceneQueryRunnerFactory;
 import io.druid.lucene.segment.LuceneQueryToolChest;
 import io.druid.lucene.segment.realtime.LuceneAppenderatorFactory;
+import io.druid.lucene.task.AppenderRealtimeIndexTask;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
@@ -61,8 +66,13 @@ public class LuceneDruidModule implements DruidModule
     return ImmutableList.of(
         new SimpleModule(LuceneDruidModule.class.getSimpleName())
             .registerSubtypes(
+                new NamedType(AppenderRealtimeIndexTask.class, "lucene_index_realtime"),
                 new NamedType(LuceneAppenderatorFactory.class, "lucene"),
-                new NamedType(GroupByQuery.class, "lucene_groupby")
+                new NamedType(GroupByQuery.class, "lucene_groupby"),
+                new NamedType(CountAggregatorFactory.class, "lucene_count"),
+                new NamedType(LongMinAggregatorFactory.class, "lucene_longMin"),
+                new NamedType(LongMaxAggregatorFactory.class, "lucene_longMax"),
+                new NamedType(LongSumAggregatorFactory.class, "lucene_longSum")
             )
     );
   }
