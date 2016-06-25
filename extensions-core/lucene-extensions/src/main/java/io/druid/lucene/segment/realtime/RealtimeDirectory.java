@@ -24,6 +24,9 @@ import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.lucene.LuceneDirectory;
+import io.druid.lucene.segment.mapping.FieldMappings;
+import io.druid.segment.indexing.DataSchema;
+import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
@@ -88,22 +91,23 @@ public class RealtimeDirectory implements LuceneDirectory {
         return new File(basePersistDir, identifier.getIdentifierAsString());
     }
 
-    public RealtimeDirectory(SegmentIdentifier segmentIdentifier, File basePersistDir,
-                             LuceneDocumentBuilder docBuilder, InputRowParser parser, int maxDocsPerSegment) throws IOException {
+    public RealtimeDirectory(SegmentIdentifier segmentIdentifier,
+                             DataSchema schema,
+                             RealtimeTuningConfig realtimeTuningConfig) throws IOException {
         this.segmentIdentifier = segmentIdentifier;
-        this.docBuilder = docBuilder;
-        this.maxRowsPerSegment = maxDocsPerSegment;
+        this.maxRowsPerSegment = realtimeTuningConfig.getMaxRowsInMemory();
         this.isOpen = true;
-        this.dimensions = new HashMap<>();
-        DimensionsSpec dimensionsSpec = getDimensionsSpec(parser);
-        for (DimensionSchema dim: dimensionsSpec.getDimensions()) {
-            dimensions.put(dim.getName(), dim.getValueType());
-        }
-
-        persistDir = computePersistDir(basePersistDir, segmentIdentifier);
+        persistDir = computePersistDir(realtimeTuningConfig.getBasePersistDirectory(), segmentIdentifier);
         persistDir.mkdirs();
+        FieldMappings fieldMappings = FieldMappings.builder()
+                .buildFieldTypesFrom(schema)
+                .build();
+        dimensions = fieldMappings.getFieldTypes();
+        this.docBuilder = new LuceneDocumentBuilder(fieldMappings);
+        fieldMappings.writeFieldTypesTo(persistDir);
         persistWriter = buildPersistWriter(FSDirectory.open(persistDir.toPath()));
         reset();
+
     }
 
     private DimensionsSpec getDimensionsSpec(InputRowParser parser) {
@@ -198,6 +202,8 @@ public class RealtimeDirectory implements LuceneDirectory {
             reset();
         }
     }
+
+
 
     public File merge() throws IOException {
         synchronized(refreshLock) {

@@ -19,47 +19,42 @@
 package io.druid.lucene.segment.realtime;
 
 import io.druid.data.input.InputRow;
-import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionSchema.ValueType;
-import io.druid.data.input.impl.DimensionsSpec;
-
-import java.util.Set;
-
+import io.druid.lucene.segment.mapping.FieldMappings;
 import io.druid.segment.column.Column;
 import org.apache.lucene.document.*;
 import org.apache.lucene.document.Field.Store;
-import org.apache.lucene.document.DoubleField;
 import org.apache.lucene.util.BytesRef;
+
+import java.util.Map;
 
 public class LuceneDocumentBuilder
 {
-  private final DimensionsSpec dimensionsSpec;
+  private final FieldMappings fieldMappings;
   
-  public LuceneDocumentBuilder(DimensionsSpec dimensionsSpec) {
-    this.dimensionsSpec = dimensionsSpec;
+  public LuceneDocumentBuilder(FieldMappings fieldMappings) {
+    this.fieldMappings = fieldMappings;
   }
   
   public Document buildLuceneDocument(InputRow row) {
-    Set<String> excludedDimensions = dimensionsSpec.getDimensionExclusions();
     Document doc = new Document();
     long timestamp = row.getTimestampFromEpoch();
     doc.add(new LongField(Column.TIME_COLUMN_NAME, timestamp, Store.YES));
     doc.add(new NumericDocValuesField(Column.TIME_COLUMN_NAME, timestamp));
-    for (String dimensionName : dimensionsSpec.getDimensionNames()) {
-      if (excludedDimensions != null && !excludedDimensions.isEmpty() && excludedDimensions.contains(dimensionName)) {
+    for (Map.Entry<String, ValueType> entry : fieldMappings.getFieldTypes().entrySet()) {
+      Object value = row.getRaw(entry.getKey());
+      if (value == null) {
         continue;
       }
-      DimensionSchema schema = dimensionsSpec.getSchema(dimensionName);
-      Object value = row.getRaw(dimensionName);
-      if (ValueType.STRING.equals(schema.getValueType())) {
-        doc.add(new TextField(dimensionName, String.valueOf(value), Store.YES));
-        doc.add(new SortedDocValuesField(dimensionName, new BytesRef(String.valueOf(value))));
-      } else if (ValueType.FLOAT.equals(schema.getValueType())) {
-        doc.add(new DoubleField(dimensionName, (Double)value, Store.YES));
-        doc.add(new DoubleDocValuesField(dimensionName, (Double)value));
-      } else if (ValueType.LONG.equals(schema.getValueType())) {
-        doc.add(new LongField(dimensionName, (Long)value, Store.YES));
-        doc.add(new NumericDocValuesField(dimensionName, (Long)value));
+      if (ValueType.STRING.equals(entry.getValue())) {
+        doc.add(new TextField(entry.getKey(), String.valueOf(value), Store.YES));
+        doc.add(new SortedDocValuesField(entry.getKey(), new BytesRef(String.valueOf(value))));
+      } else if (ValueType.FLOAT.equals(entry.getValue())) {
+        doc.add(new DoubleField(entry.getKey(), (Double)value, Store.YES));
+        doc.add(new DoubleDocValuesField(entry.getKey(), (Double)value));
+      } else if (ValueType.LONG.equals(entry.getValue())) {
+        doc.add(new LongField(entry.getKey(), (Long)value, Store.YES));
+        doc.add(new NumericDocValuesField(entry.getKey(), (Long)value));
       }
     }
     return doc;

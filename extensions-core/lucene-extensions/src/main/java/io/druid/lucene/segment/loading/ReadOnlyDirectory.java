@@ -20,6 +20,7 @@ package io.druid.lucene.segment.loading;
 
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.lucene.LuceneDirectory;
+import io.druid.lucene.segment.mapping.FieldMappings;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.store.FSDirectory;
@@ -32,11 +33,14 @@ import java.util.Map;
 /**
  */
 public class ReadOnlyDirectory implements LuceneDirectory {
+
     private final IndexReader indexReader;
+    private final Map<String, DimensionSchema.ValueType> dimensions;
 
     public ReadOnlyDirectory(File parentDir) throws IOException {
+        this.dimensions = FieldMappings.builder().buildFieldTypesFrom(parentDir).build().getFieldTypes();
         FSDirectory luceneDir = FSDirectory.open(parentDir.toPath());
-        indexReader = DirectoryReader.open(luceneDir);
+        this.indexReader = DirectoryReader.open(luceneDir);
     }
 
     @Override
@@ -51,7 +55,7 @@ public class ReadOnlyDirectory implements LuceneDirectory {
 
     @Override
     public Map<String, DimensionSchema.ValueType> getFieldTypes() {
-        return null;
+        return this.dimensions;
     }
 
     @Override

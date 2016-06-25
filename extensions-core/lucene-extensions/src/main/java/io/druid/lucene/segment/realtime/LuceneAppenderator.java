@@ -82,7 +82,6 @@ public class LuceneAppenderator implements Appenderator, Runnable
   private static final long DEFAULT_INDEX_REFRESH_INTERVAL_SECONDS = 5;
 
   private final DataSchema schema;
-  private final LuceneDocumentBuilder docBuilder;
   private final DataSegmentPusher dataSegmentPusher;
   private final ObjectMapper objectMapper;
   private final QueryRunnerFactoryConglomerate conglomerate;
@@ -112,7 +111,6 @@ public class LuceneAppenderator implements Appenderator, Runnable
   )
   {
     this.schema = schema;
-    this.docBuilder = new LuceneDocumentBuilder(schema.getParser().getParseSpec().getDimensionsSpec());
     this.realtimeTuningConfig = realtimeTuningConfig;
     this.queryExecutorService = queryExecutorService;
     this.dataSegmentPusher = dataSegmentPusher;
@@ -149,6 +147,7 @@ public class LuceneAppenderator implements Appenderator, Runnable
       directory.add(row);
 
       if (!directory.canAppendRow() || System.currentTimeMillis() > nextFlush) {
+        log.info("Intermediate persist.");
         persistAll(committerSupplier.get());
       }
       return directory.numRows();
@@ -162,8 +161,7 @@ public class LuceneAppenderator implements Appenderator, Runnable
     RealtimeDirectory retVal = directories.get(identifier);
 
     if (retVal == null) {
-      retVal = new RealtimeDirectory(identifier, realtimeTuningConfig.getBasePersistDirectory(),
-              docBuilder, schema.getParser(), realtimeTuningConfig.getMaxRowsInMemory());
+      retVal = new RealtimeDirectory(identifier, schema, realtimeTuningConfig);
 
       try {
         segmentAnnouncer.announceSegment(retVal.getSegment());

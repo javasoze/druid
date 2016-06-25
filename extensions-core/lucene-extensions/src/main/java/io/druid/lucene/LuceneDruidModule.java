@@ -35,6 +35,12 @@ import io.druid.lucene.aggregation.LongMaxAggregatorFactory;
 import io.druid.lucene.aggregation.LongMinAggregatorFactory;
 import io.druid.lucene.aggregation.LongSumAggregatorFactory;
 import io.druid.lucene.query.groupby.*;
+import io.druid.lucene.query.search.SearchQueryQueryToolChest;
+import io.druid.lucene.query.search.SearchQueryRunnerFactory;
+import io.druid.lucene.query.search.search.SearchQuery;
+import io.druid.lucene.query.select.SelectQuery;
+import io.druid.lucene.query.select.SelectQueryQueryToolChest;
+import io.druid.lucene.query.select.SelectQueryRunnerFactory;
 import io.druid.lucene.segment.realtime.LuceneAppenderatorFactory;
 import io.druid.lucene.task.AppenderRealtimeIndexTask;
 import io.druid.query.Query;
@@ -50,11 +56,15 @@ public class LuceneDruidModule implements DruidModule
   private static final Map<Class<? extends Query>, Class<? extends QueryRunnerFactory>> queryRunnerMappings =
           ImmutableMap.<Class<? extends Query>, Class<? extends QueryRunnerFactory>>builder()
                   .put(GroupByQuery.class, GroupByQueryRunnerFactory.class)
+                  .put(SelectQuery.class, SelectQueryRunnerFactory.class)
+                  .put(SearchQuery.class, SearchQueryRunnerFactory.class)
                   .build();
 
   private static final Map<Class<? extends Query>, Class<? extends QueryToolChest>> toolChestMappings =
           ImmutableMap.<Class<? extends Query>, Class<? extends QueryToolChest>>builder()
                   .put(GroupByQuery.class, GroupByQueryQueryToolChest.class)
+                  .put(SelectQuery.class, SelectQueryQueryToolChest.class)
+                  .put(SearchQuery.class, SearchQueryQueryToolChest.class)
                   .build();
 
   @Override
@@ -66,6 +76,8 @@ public class LuceneDruidModule implements DruidModule
                 new NamedType(AppenderRealtimeIndexTask.class, "lucene_index_realtime"),
                 new NamedType(LuceneAppenderatorFactory.class, "lucene"),
                 new NamedType(GroupByQuery.class, "lucene_groupby"),
+                new NamedType(SelectQuery.class, "lucene_select"),
+                new NamedType(SearchQuery.class, "lucene_search"),
                 new NamedType(CountAggregatorFactory.class, "lucene_count"),
                 new NamedType(LongMinAggregatorFactory.class, "lucene_longMin"),
                 new NamedType(LongMaxAggregatorFactory.class, "lucene_longMax"),
