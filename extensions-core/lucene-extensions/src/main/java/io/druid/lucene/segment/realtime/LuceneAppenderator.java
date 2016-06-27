@@ -129,7 +129,8 @@ public class LuceneAppenderator implements Appenderator, Runnable
 
 
   @Override
-  public Object startJob() {
+  public Object startJob()
+  {
     realtimeTuningConfig.getBasePersistDirectory().mkdirs();
     indexRefresher.start();
     initializeExecutors();
@@ -140,7 +141,8 @@ public class LuceneAppenderator implements Appenderator, Runnable
   @Override
   public int add(SegmentIdentifier identifier, InputRow row,
                  Supplier<Committer> committerSupplier) throws IndexSizeExceededException,
-          SegmentNotWritableException {
+          SegmentNotWritableException
+  {
 
     try {
       RealtimeDirectory directory = getOrCreateDir(identifier);
@@ -157,7 +159,8 @@ public class LuceneAppenderator implements Appenderator, Runnable
     }
   }
 
-  private RealtimeDirectory getOrCreateDir(final SegmentIdentifier identifier) throws IOException {
+  private RealtimeDirectory getOrCreateDir(final SegmentIdentifier identifier) throws IOException
+  {
     RealtimeDirectory retVal = directories.get(identifier);
 
     if (retVal == null) {
@@ -191,7 +194,8 @@ public class LuceneAppenderator implements Appenderator, Runnable
 
   @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query,
-      Iterable<Interval> intervals) {
+      Iterable<Interval> intervals)
+  {
     final List<SegmentDescriptor> specs = Lists.newArrayList();
 
     Iterables.addAll(
@@ -240,7 +244,8 @@ public class LuceneAppenderator implements Appenderator, Runnable
 
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query,
-      Iterable<SegmentDescriptor> specs) {
+      Iterable<SegmentDescriptor> specs)
+  {
  // We only handle one dataSource. Make sure it's in the list of names, then ignore from here on out.
     if (!query.getDataSource().getNames().contains(getDataSource())) {
       log.makeAlert("Received query for unknown dataSource")
@@ -301,13 +306,15 @@ public class LuceneAppenderator implements Appenderator, Runnable
   }
 
   @Override
-  public int getRowCount(SegmentIdentifier identifier) {
+  public int getRowCount(SegmentIdentifier identifier)
+  {
     RealtimeDirectory directory = directories.get(identifier);
     return directory == null ? 0 : directory.numRows();
   }
 
   @Override
-  public void clear() throws InterruptedException {
+  public void clear() throws InterruptedException
+  {
     // Drop commit metadata, then abandon all segments.
 
     try {
@@ -449,7 +456,8 @@ public class LuceneAppenderator implements Appenderator, Runnable
     );
   }
 
-  private DataSegment mergeAndPush(final RealtimeDirectory directory) {
+  private DataSegment mergeAndPush(final RealtimeDirectory directory)
+  {
     try {
       File mergedFile = directory.merge();
       DataSegment segment = dataSegmentPusher.push(
@@ -464,7 +472,8 @@ public class LuceneAppenderator implements Appenderator, Runnable
   }
 
   @Override
-  public void close() {
+  public void close()
+  {
     log.info("Shutting down...");
 
     final List<ListenableFuture<?>> futures = Lists.newArrayList();
@@ -617,9 +626,10 @@ public class LuceneAppenderator implements Appenderator, Runnable
   }
 
   @Override
-  public void run() {
+  public void run()
+  {
     while(!isClosed) {
-      log.info("refresh index segments");
+      log.debug("refresh index segments");
       for (RealtimeDirectory directory : directories.values()) {
         try {
           directory.refreshRealtimeReader();

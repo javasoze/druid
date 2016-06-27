@@ -25,10 +25,12 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
+import com.google.inject.Key;
 import com.google.inject.multibindings.MapBinder;
 import io.druid.guice.DruidBinders;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
+import io.druid.guice.PolyBind;
 import io.druid.initialization.DruidModule;
 import io.druid.lucene.aggregation.CountAggregatorFactory;
 import io.druid.lucene.aggregation.LongMaxAggregatorFactory;
@@ -41,11 +43,13 @@ import io.druid.lucene.query.search.search.SearchQuery;
 import io.druid.lucene.query.select.SelectQuery;
 import io.druid.lucene.query.select.SelectQueryQueryToolChest;
 import io.druid.lucene.query.select.SelectQueryRunnerFactory;
+import io.druid.lucene.segment.loading.LuceneSegmentFactory;
 import io.druid.lucene.segment.realtime.LuceneAppenderatorFactory;
-import io.druid.lucene.task.AppenderRealtimeIndexTask;
+import io.druid.lucene.task.LuceneIndexRealtimeTask;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
+import io.druid.segment.loading.SegmentFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -73,7 +77,7 @@ public class LuceneDruidModule implements DruidModule
     return ImmutableList.of(
         new SimpleModule(LuceneDruidModule.class.getSimpleName())
             .registerSubtypes(
-                new NamedType(AppenderRealtimeIndexTask.class, "lucene_index_realtime"),
+                new NamedType(LuceneIndexRealtimeTask.class, "lucene_index_realtime"),
                 new NamedType(LuceneAppenderatorFactory.class, "lucene"),
                 new NamedType(GroupByQuery.class, "lucene_groupby"),
                 new NamedType(SelectQuery.class, "lucene_select"),
@@ -109,6 +113,10 @@ public class LuceneDruidModule implements DruidModule
     binder.bind(GroupByQueryEngine.class).in(LazySingleton.class);
 
     JsonConfigProvider.bind(binder, "druid.lucene.query.groupBy", GroupByQueryConfig.class);
+    PolyBind.optionBinder(binder, Key.get(SegmentFactory.class))
+            .addBinding("lucene")
+            .to(LuceneSegmentFactory.class)
+            .in(LazySingleton.class);
 
   }
 }

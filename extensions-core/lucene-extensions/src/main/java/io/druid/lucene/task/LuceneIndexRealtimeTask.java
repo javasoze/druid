@@ -48,11 +48,11 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * Created by sugo on 16-6-24.
+ *
  */
-public class AppenderRealtimeIndexTask extends AbstractTask
+public class LuceneIndexRealtimeTask extends AbstractTask
 {
-    private static final EmittingLogger log = new EmittingLogger(AppenderRealtimeIndexTask.class);
+    private static final EmittingLogger log = new EmittingLogger(LuceneIndexRealtimeTask.class);
     private final static Random random = new Random();
 
     private static String makeTaskId(FireDepartment fireDepartment)
@@ -72,7 +72,7 @@ public class AppenderRealtimeIndexTask extends AbstractTask
             suffix.append((char) ('a' + ((randomBits >>> (i * 4)) & 0x0F)));
         }
         return String.format(
-                "index_realtime_%s_%d_%s_%s",
+                "lucene_index_realtime_%s_%d_%s_%s",
                 dataSource,
                 partitionNumber,
                 timestamp,
@@ -110,7 +110,7 @@ public class AppenderRealtimeIndexTask extends AbstractTask
     private volatile QueryRunnerFactoryConglomerate queryRunnerFactoryConglomerate = null;
 
     @JsonCreator
-    public AppenderRealtimeIndexTask(
+    public LuceneIndexRealtimeTask(
             @JsonProperty("id") String id,
             @JsonProperty("resource") TaskResource taskResource,
             @JsonProperty("spec") FireDepartment fireDepartment,
@@ -172,7 +172,7 @@ public class AppenderRealtimeIndexTask extends AbstractTask
         // It would be nice to get the PlumberSchool in the constructor.  Although that will need jackson injectables for
         // stuff like the ServerView, which seems kind of odd?  Perhaps revisit this when Guice has been introduced.
 
-        final SegmentPublisher segmentPublisher = new AppenderRealtimeIndexTask.TaskActionSegmentPublisher(this, toolbox);
+        final SegmentPublisher segmentPublisher = new LuceneIndexRealtimeTask.TaskActionSegmentPublisher(this, toolbox);
 
         // NOTE: We talk to the coordinator in various places in the plumber and we could be more robust to issues
         // with the coordinator.  Right now, we'll block/throw in whatever thread triggered the coordinator behavior,
