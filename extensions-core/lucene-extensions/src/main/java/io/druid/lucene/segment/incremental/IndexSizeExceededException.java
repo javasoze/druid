@@ -17,34 +17,28 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.lucene.segment.incremental;
 
-import com.google.common.collect.Lists;
-import io.druid.query.aggregation.AggregatorFactory;
+import java.io.IOException;
 
-import java.nio.ByteBuffer;
-import java.util.List;
-
-/**
- */
-public class QueryCacheHelper
+public class IndexSizeExceededException extends IOException
 {
-  public static byte[] computeAggregatorBytes(List<? extends AggregatorFactory> aggregatorSpecs)
+  public IndexSizeExceededException()
   {
-    List<byte[]> cacheKeySet = Lists.newArrayListWithCapacity(aggregatorSpecs.size());
-
-    int totalSize = 0;
-    for (AggregatorFactory spec : aggregatorSpecs) {
-      final byte[] cacheKey = spec.getCacheKey();
-      cacheKeySet.add(cacheKey);
-      totalSize += cacheKey.length;
-    }
-
-    ByteBuffer retVal = ByteBuffer.allocate(totalSize);
-    for (byte[] bytes : cacheKeySet) {
-      retVal.put(bytes);
-    }
-    return retVal.array();
   }
 
+  public IndexSizeExceededException(String formatText, Object... arguments)
+  {
+    super(String.format(formatText, arguments));
+  }
+
+  public IndexSizeExceededException(Throwable cause, String formatText, Object... arguments)
+  {
+    super(String.format(formatText, arguments), cause);
+  }
+
+  public IndexSizeExceededException(Throwable cause)
+  {
+    super(cause);
+  }
 }

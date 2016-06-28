@@ -17,34 +17,22 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.lucene;
 
-import com.google.common.collect.Lists;
-import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.data.input.impl.DimensionSchema;
+import org.apache.lucene.index.IndexReader;
+import org.joda.time.Interval;
 
-import java.nio.ByteBuffer;
-import java.util.List;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Map;
 
 /**
  */
-public class QueryCacheHelper
-{
-  public static byte[] computeAggregatorBytes(List<? extends AggregatorFactory> aggregatorSpecs)
-  {
-    List<byte[]> cacheKeySet = Lists.newArrayListWithCapacity(aggregatorSpecs.size());
+public interface LuceneDirectory extends Closeable{
+    int numRows();
 
-    int totalSize = 0;
-    for (AggregatorFactory spec : aggregatorSpecs) {
-      final byte[] cacheKey = spec.getCacheKey();
-      cacheKeySet.add(cacheKey);
-      totalSize += cacheKey.length;
-    }
+    IndexReader getIndexReader() throws IOException;
 
-    ByteBuffer retVal = ByteBuffer.allocate(totalSize);
-    for (byte[] bytes : cacheKeySet) {
-      retVal.put(bytes);
-    }
-    return retVal.array();
-  }
-
+    Map<String, DimensionSchema.ValueType> getFieldTypes();
 }

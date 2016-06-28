@@ -17,30 +17,35 @@
  * under the License.
  */
 
-package io.druid.segment.realtime.plumber;
+package io.druid.lucene.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import io.druid.segment.indexing.DataSchema;
-import io.druid.segment.indexing.RealtimeTuningConfig;
-import io.druid.segment.realtime.FireDepartmentMetrics;
-import io.druid.segment.realtime.appenderator.AppenderatorPlumberSchool;
+import com.google.common.base.Function;
+import com.metamx.common.guava.Sequence;
+import io.druid.data.input.Row;
+import io.druid.lucene.aggregation.LuceneAggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.dimension.DimensionSpec;
+
+import java.util.List;
 
 /**
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = RealtimePlumberSchool.class)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = NoopLimitSpec.class)
 @JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "realtime", value = RealtimePlumberSchool.class),
-    @JsonSubTypes.Type(name = "appenderator", value = AppenderatorPlumberSchool.class),
-    @JsonSubTypes.Type(name = "flushing", value = FlushingPlumberSchool.class)
+    @JsonSubTypes.Type(name = "default", value = DefaultLimitSpec.class)
 })
-public interface PlumberSchool
+public interface LimitSpec
 {
-  /**
-   * Creates a Plumber
-   *
-   * @return returns a plumber
-   */
-  public Plumber findPlumber(DataSchema schema, RealtimeTuningConfig config, FireDepartmentMetrics metrics);
+  public Function<Sequence<Row>, Sequence<Row>> build(
+          List<DimensionSpec> dimensions,
+          List<LuceneAggregatorFactory> aggs,
+          List<PostAggregator> postAggs
+  );
 
+  public LimitSpec merge(LimitSpec other);
+
+  public byte[] getCacheKey();
 }

@@ -17,34 +17,22 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.lucene.query.search.search;
 
-import com.google.common.collect.Lists;
-import io.druid.query.aggregation.AggregatorFactory;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.nio.ByteBuffer;
-import java.util.List;
+import javax.validation.constraints.Min;
 
 /**
  */
-public class QueryCacheHelper
+public class SearchQueryConfig
 {
-  public static byte[] computeAggregatorBytes(List<? extends AggregatorFactory> aggregatorSpecs)
+  @JsonProperty
+  @Min(1)
+  private int maxSearchLimit = 1000;
+
+  public int getMaxSearchLimit()
   {
-    List<byte[]> cacheKeySet = Lists.newArrayListWithCapacity(aggregatorSpecs.size());
-
-    int totalSize = 0;
-    for (AggregatorFactory spec : aggregatorSpecs) {
-      final byte[] cacheKey = spec.getCacheKey();
-      cacheKeySet.add(cacheKey);
-      totalSize += cacheKey.length;
-    }
-
-    ByteBuffer retVal = ByteBuffer.allocate(totalSize);
-    for (byte[] bytes : cacheKeySet) {
-      retVal.put(bytes);
-    }
-    return retVal.array();
+    return maxSearchLimit;
   }
-
 }

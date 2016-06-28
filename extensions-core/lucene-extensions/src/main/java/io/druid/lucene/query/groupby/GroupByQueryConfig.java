@@ -17,34 +17,50 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.lucene.query.groupby;
 
-import com.google.common.collect.Lists;
-import io.druid.query.aggregation.AggregatorFactory;
-
-import java.nio.ByteBuffer;
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  */
-public class QueryCacheHelper
+public class GroupByQueryConfig
 {
-  public static byte[] computeAggregatorBytes(List<? extends AggregatorFactory> aggregatorSpecs)
+  @JsonProperty
+  private boolean singleThreaded = false;
+
+  @JsonProperty
+  private int maxIntermediateRows = 50000;
+
+  @JsonProperty
+  private int maxResults = 500000;
+
+  public boolean isSingleThreaded()
   {
-    List<byte[]> cacheKeySet = Lists.newArrayListWithCapacity(aggregatorSpecs.size());
-
-    int totalSize = 0;
-    for (AggregatorFactory spec : aggregatorSpecs) {
-      final byte[] cacheKey = spec.getCacheKey();
-      cacheKeySet.add(cacheKey);
-      totalSize += cacheKey.length;
-    }
-
-    ByteBuffer retVal = ByteBuffer.allocate(totalSize);
-    for (byte[] bytes : cacheKeySet) {
-      retVal.put(bytes);
-    }
-    return retVal.array();
+    return singleThreaded;
   }
 
+  public void setSingleThreaded(boolean singleThreaded)
+  {
+    this.singleThreaded = singleThreaded;
+  }
+
+  public int getMaxIntermediateRows()
+  {
+    return maxIntermediateRows;
+  }
+
+  public void setMaxIntermediateRows(int maxIntermediateRows)
+  {
+    this.maxIntermediateRows = maxIntermediateRows;
+  }
+
+  public int getMaxResults()
+  {
+    return maxResults;
+  }
+
+  public void setMaxResults(int maxResults)
+  {
+    this.maxResults = maxResults;
+  }
 }

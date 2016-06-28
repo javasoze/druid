@@ -50,7 +50,7 @@ public class DruidMetrics
   public final static String SERVER = "server";
   public final static String TIER = "tier";
 
-  public static int findNumComplexAggs(List<AggregatorFactory> aggs)
+  public static int findNumComplexAggs(List<? extends AggregatorFactory> aggs)
   {
     int retVal = 0;
     for (AggregatorFactory agg : aggs) {

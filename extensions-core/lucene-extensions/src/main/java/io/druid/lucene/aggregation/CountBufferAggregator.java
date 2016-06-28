@@ -17,34 +17,51 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.lucene.aggregation;
 
-import com.google.common.collect.Lists;
-import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.BufferAggregator;
 
 import java.nio.ByteBuffer;
-import java.util.List;
 
 /**
  */
-public class QueryCacheHelper
+public class CountBufferAggregator implements BufferAggregator
 {
-  public static byte[] computeAggregatorBytes(List<? extends AggregatorFactory> aggregatorSpecs)
+
+  @Override
+  public void init(ByteBuffer buf, int position)
   {
-    List<byte[]> cacheKeySet = Lists.newArrayListWithCapacity(aggregatorSpecs.size());
-
-    int totalSize = 0;
-    for (AggregatorFactory spec : aggregatorSpecs) {
-      final byte[] cacheKey = spec.getCacheKey();
-      cacheKeySet.add(cacheKey);
-      totalSize += cacheKey.length;
-    }
-
-    ByteBuffer retVal = ByteBuffer.allocate(totalSize);
-    for (byte[] bytes : cacheKeySet) {
-      retVal.put(bytes);
-    }
-    return retVal.array();
+    buf.putLong(position, 0L);
   }
 
+  @Override
+  public void aggregate(ByteBuffer buf, int position)
+  {
+    buf.putLong(position, buf.getLong(position) + 1);
+  }
+
+  @Override
+  public Object get(ByteBuffer buf, int position)
+  {
+    return buf.getLong(position);
+  }
+
+  @Override
+  public float getFloat(ByteBuffer buf, int position)
+  {
+    return buf.getLong(position);
+  }
+
+
+  @Override
+  public long getLong(ByteBuffer buf, int position)
+  {
+    return buf.getLong(position);
+  }
+
+  @Override
+  public void close()
+  {
+    // no resources to cleanup
+  }
 }

@@ -17,34 +17,37 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.lucene.aggregation;
 
-import com.google.common.collect.Lists;
-import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.lucene.segment.DimensionSelector;
 
 import java.nio.ByteBuffer;
-import java.util.List;
 
 /**
  */
-public class QueryCacheHelper
+public class LongSumBufferAggregator extends BaseLongBufferAggregator
 {
-  public static byte[] computeAggregatorBytes(List<? extends AggregatorFactory> aggregatorSpecs)
+  public LongSumBufferAggregator(
+      DimensionSelector selector
+  )
   {
-    List<byte[]> cacheKeySet = Lists.newArrayListWithCapacity(aggregatorSpecs.size());
-
-    int totalSize = 0;
-    for (AggregatorFactory spec : aggregatorSpecs) {
-      final byte[] cacheKey = spec.getCacheKey();
-      cacheKeySet.add(cacheKey);
-      totalSize += cacheKey.length;
-    }
-
-    ByteBuffer retVal = ByteBuffer.allocate(totalSize);
-    for (byte[] bytes : cacheKeySet) {
-      retVal.put(bytes);
-    }
-    return retVal.array();
+    super(selector);
   }
 
+
+  @Override
+  public void init(ByteBuffer buf, int position) {
+    buf.putLong(position, 0L);
+  }
+
+  @Override
+  public void aggregate(ByteBuffer buf, int position)
+  {
+    long[] vals = getValue(0L);
+    long rowSum = 0L;
+    for (long val: vals) {
+      rowSum += val;
+    }
+    buf.putLong(position, buf.getLong(position) + rowSum);
+  }
 }

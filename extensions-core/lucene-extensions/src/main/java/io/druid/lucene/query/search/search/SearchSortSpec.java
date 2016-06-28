@@ -17,30 +17,23 @@
  * under the License.
  */
 
-package io.druid.segment.realtime.plumber;
+package io.druid.lucene.query.search.search;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import io.druid.segment.indexing.DataSchema;
-import io.druid.segment.indexing.RealtimeTuningConfig;
-import io.druid.segment.realtime.FireDepartmentMetrics;
-import io.druid.segment.realtime.appenderator.AppenderatorPlumberSchool;
+
+import java.util.Comparator;
 
 /**
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = RealtimePlumberSchool.class)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = LexicographicSearchSortSpec.class)
 @JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "realtime", value = RealtimePlumberSchool.class),
-    @JsonSubTypes.Type(name = "appenderator", value = AppenderatorPlumberSchool.class),
-    @JsonSubTypes.Type(name = "flushing", value = FlushingPlumberSchool.class)
+    @JsonSubTypes.Type(name = "lexicographic", value = LexicographicSearchSortSpec.class),
+    @JsonSubTypes.Type(name = "strlen", value = StrlenSearchSortSpec.class)
 })
-public interface PlumberSchool
+public interface SearchSortSpec
 {
-  /**
-   * Creates a Plumber
-   *
-   * @return returns a plumber
-   */
-  public Plumber findPlumber(DataSchema schema, RealtimeTuningConfig config, FireDepartmentMetrics metrics);
+  Comparator<SearchHit> getComparator();
 
+  byte[] getCacheKey();
 }
