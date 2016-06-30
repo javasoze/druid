@@ -65,8 +65,8 @@ import java.util.concurrent.ExecutorService;
 
 public class LuceneAppenderator implements Appenderator, Runnable
 {
-  private static final EmittingLogger log = new EmittingLogger(LuceneAppenderator.class);
-  
+  private static final EmittingLogger log = new EmittingLogger(
+      LuceneAppenderator.class);
   private static final long DEFAULT_INDEX_REFRESH_INTERVAL_SECONDS = 5;
 
   private final DataSchema schema;
@@ -76,20 +76,19 @@ public class LuceneAppenderator implements Appenderator, Runnable
   private final ExecutorService queryExecutorService;
   private final Thread indexRefresher;
   private volatile boolean isClosed = false;
-  private final Map<SegmentIdentifier, LuceneDruidSegment> segments = Maps.newHashMap();
+  private final Map<SegmentIdentifier, LuceneDruidSegment> segments = Maps
+      .newHashMap();
   private final VersionedIntervalTimeline<String, LuceneDruidSegment> timeline = new VersionedIntervalTimeline<>(
-      Ordering.natural()
-  );
-  
-  public LuceneAppenderator(
-      DataSchema schema,
+      Ordering.natural());
+
+  public LuceneAppenderator(DataSchema schema,
       RealtimeTuningConfig realtimeTuningConfig,
       QueryRunnerFactoryConglomerate conglomerate,
-      ExecutorService queryExecutorService
-  )
+      ExecutorService queryExecutorService)
   {
     this.schema = schema;
-    this.docBuilder = new LuceneDocumentBuilder(schema.getParser().getParseSpec().getDimensionsSpec());
+    this.docBuilder = new LuceneDocumentBuilder(schema.getParser()
+        .getParseSpec().getDimensionsSpec());
     this.realtimeTuningConfig = realtimeTuningConfig;
     this.queryExecutorService = queryExecutorService;
     this.conglomerate = conglomerate;
@@ -102,120 +101,118 @@ public class LuceneAppenderator implements Appenderator, Runnable
   {
     return schema.getDataSource();
   }
-  
+
   @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query,
-      Iterable<Interval> intervals) {
+      Iterable<Interval> intervals)
+  {
     final List<SegmentDescriptor> specs = Lists.newArrayList();
 
-    Iterables.addAll(
-        specs,
-        FunctionalIterable
-            .create(intervals)
-            .transformCat(
-                new Function<Interval, Iterable<TimelineObjectHolder<String, LuceneDruidSegment>>>()
-                {
-                  @Override
-                  public Iterable<TimelineObjectHolder<String, LuceneDruidSegment>> apply(final Interval interval)
-                  {
-                    return timeline.lookup(interval);
-                  }
-                }
-            )
-            .transformCat(
-                new Function<TimelineObjectHolder<String, LuceneDruidSegment>, Iterable<SegmentDescriptor>>()
-                {
-                  @Override
-                  public Iterable<SegmentDescriptor> apply(final TimelineObjectHolder<String, LuceneDruidSegment> holder)
-                  {
-                    return FunctionalIterable
-                        .create(holder.getObject())
-                        .transform(
-                            new Function<PartitionChunk<LuceneDruidSegment>, SegmentDescriptor>()
-                            {
-                              @Override
-                              public SegmentDescriptor apply(final PartitionChunk<LuceneDruidSegment> chunk)
-                              {
-                                return new SegmentDescriptor(
-                                    holder.getInterval(),
-                                    holder.getVersion(),
-                                    chunk.getChunkNumber()
-                                );
-                              }
-                            }
-                        );
-                  }
-                }
-            )
-    );
+    Iterables
+        .addAll(
+            specs,
+            FunctionalIterable
+                .create(intervals)
+                .transformCat(
+                    new Function<Interval, Iterable<TimelineObjectHolder<String, LuceneDruidSegment>>>()
+                    {
+                      @Override
+                      public Iterable<TimelineObjectHolder<String, LuceneDruidSegment>> apply(
+                          final Interval interval)
+                      {
+                        return timeline.lookup(interval);
+                      }
+                    })
+                .transformCat(
+                    new Function<TimelineObjectHolder<String, LuceneDruidSegment>, Iterable<SegmentDescriptor>>()
+                    {
+                      @Override
+                      public Iterable<SegmentDescriptor> apply(
+                          final TimelineObjectHolder<String, LuceneDruidSegment> holder)
+                      {
+                        return FunctionalIterable
+                            .create(holder.getObject())
+                            .transform(
+                                new Function<PartitionChunk<LuceneDruidSegment>, SegmentDescriptor>()
+                                {
+                                  @Override
+                                  public SegmentDescriptor apply(
+                                      final PartitionChunk<LuceneDruidSegment> chunk)
+                                  {
+                                    return new SegmentDescriptor(holder
+                                        .getInterval(), holder.getVersion(),
+                                        chunk.getChunkNumber());
+                                  }
+                                });
+                      }
+                    }));
 
     return getQueryRunnerForSegments(query, specs);
   }
 
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query,
-      Iterable<SegmentDescriptor> specs) {
- // We only handle one dataSource. Make sure it's in the list of names, then ignore from here on out.
-    if (!query.getDataSource().getNames().contains(getDataSource())) {
+      Iterable<SegmentDescriptor> specs)
+  {
+    // We only handle one dataSource. Make sure it's in the list of names, then
+    // ignore from here on out.
+    if (!query.getDataSource().getNames().contains(getDataSource()))
+    {
       log.makeAlert("Received query for unknown dataSource")
-         .addData("dataSource", query.getDataSource())
-         .emit();
+          .addData("dataSource", query.getDataSource()).emit();
       return new NoopQueryRunner<>();
     }
 
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
-    if (factory == null) {
+    final QueryRunnerFactory<T, Query<T>> factory = conglomerate
+        .findFactory(query);
+    if (factory == null)
+    {
       log.makeAlert("Unknown query type, [%s]", query.getClass())
-         .addData("dataSource", query.getDataSource())
-         .emit();
+          .addData("dataSource", query.getDataSource()).emit();
       return new NoopQueryRunner<>();
     }
 
     final QueryToolChest<T, Query<T>> toolchest = factory.getToolchest();
 
-    return toolchest.mergeResults(
-        factory.mergeRunners(
-            queryExecutorService,
-            FunctionalIterable
-                .create(specs)
-                .transform(
-                    new Function<SegmentDescriptor, QueryRunner<T>>()
-                    {
-                      @Override
-                      public QueryRunner<T> apply(final SegmentDescriptor descriptor)
-                      {
-                        final PartitionHolder<LuceneDruidSegment> holder = timeline.findEntry(
-                            descriptor.getInterval(),
-                            descriptor.getVersion()
-                        );
-                        if (holder == null) {
-                          return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
-                        }
+    return toolchest.mergeResults(factory.mergeRunners(
+        queryExecutorService,
+        FunctionalIterable.create(specs).transform(
+            new Function<SegmentDescriptor, QueryRunner<T>>()
+            {
+              @Override
+              public QueryRunner<T> apply(final SegmentDescriptor descriptor)
+              {
+                final PartitionHolder<LuceneDruidSegment> holder = timeline
+                    .findEntry(descriptor.getInterval(),
+                        descriptor.getVersion());
+                if (holder == null)
+                {
+                  return new ReportTimelineMissingSegmentQueryRunner<>(
+                      descriptor);
+                }
 
-                        final PartitionChunk<LuceneDruidSegment> chunk = holder.getChunk(descriptor.getPartitionNumber());
-                        if (chunk == null) {
-                          return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
-                        }
+                final PartitionChunk<LuceneDruidSegment> chunk = holder
+                    .getChunk(descriptor.getPartitionNumber());
+                if (chunk == null)
+                {
+                  return new ReportTimelineMissingSegmentQueryRunner<>(
+                      descriptor);
+                }
 
-                        final LuceneDruidSegment segment = chunk.getObject();
+                final LuceneDruidSegment segment = chunk.getObject();
 
-                        return new SpecificSegmentQueryRunner<>(
-                            new BySegmentQueryRunner<>(
-                                segment.getIdentifier(),
-                                descriptor.getInterval().getStart(),
-                                factory.createRunner(segment)
-                            ),
-                            new SpecificSegmentSpec(descriptor)
-                        );
-                      }
-                    }
-                )
-        )
-    );
+                return new SpecificSegmentQueryRunner<>(
+                    new BySegmentQueryRunner<>(segment.getIdentifier(),
+                        descriptor.getInterval().getStart(), factory
+                            .createRunner(segment)), new SpecificSegmentSpec(
+                        descriptor));
+              }
+            })));
   }
 
   @Override
-  public Object startJob() {
+  public Object startJob()
+  {
     indexRefresher.start();
     return null;
   }
@@ -223,50 +220,57 @@ public class LuceneAppenderator implements Appenderator, Runnable
   @Override
   public int add(SegmentIdentifier identifier, InputRow row,
       Supplier<Committer> committerSupplier) throws IndexSizeExceededException,
-      SegmentNotWritableException {
+      SegmentNotWritableException
+  {
     LuceneDruidSegment segment = segments.get(identifier);
-    
-    try {
-      if (segment == null) {      
-        segment = new LuceneDruidSegment(identifier, realtimeTuningConfig.getBasePersistDirectory(), 
-            docBuilder, realtimeTuningConfig.getMaxRowsInMemory());
+
+    try
+    {
+      if (segment == null)
+      {
+        segment = new LuceneDruidSegment(identifier,
+            realtimeTuningConfig.getBasePersistDirectory(), docBuilder,
+            realtimeTuningConfig.getMaxRowsInMemory());
         segments.put(identifier, segment);
-        timeline.add(
-            identifier.getInterval(),
-            identifier.getVersion(),
-            identifier.getShardSpec().createChunk(segment)
-        );
-      } 
+        timeline.add(identifier.getInterval(), identifier.getVersion(),
+            identifier.getShardSpec().createChunk(segment));
+      }
       segment.add(row);
       return segment.numRows();
-    } catch (IOException ioe) {
+    } catch (IOException ioe)
+    {
       ioe.printStackTrace();
       throw new SegmentNotWritableException(ioe.getMessage(), ioe);
     }
   }
 
   @Override
-  public List<SegmentIdentifier> getSegments() {
+  public List<SegmentIdentifier> getSegments()
+  {
     return ImmutableList.copyOf(segments.keySet());
   }
 
   @Override
-  public int getRowCount(SegmentIdentifier identifier) {
+  public int getRowCount(SegmentIdentifier identifier)
+  {
     LuceneDruidSegment segment = segments.get(identifier);
     return segment == null ? 0 : segment.numRows();
   }
 
   @Override
-  public void clear() throws InterruptedException {
-    for (Map.Entry<SegmentIdentifier, LuceneDruidSegment> entry : segments.entrySet()) {
-      timeline.remove(
-          entry.getKey().getInterval(),
-          entry.getKey().getVersion(),
-          entry.getKey().getShardSpec().createChunk(entry.getValue())
-      );
-      try {
+  public void clear() throws InterruptedException
+  {
+    for (Map.Entry<SegmentIdentifier, LuceneDruidSegment> entry : segments
+        .entrySet())
+    {
+      timeline.remove(entry.getKey().getInterval(),
+          entry.getKey().getVersion(), entry.getKey().getShardSpec()
+              .createChunk(entry.getValue()));
+      try
+      {
         entry.getValue().close();
-      } catch (IOException e) {
+      } catch (IOException e)
+      {
         log.error(e.getMessage(), e);
       }
     }
@@ -277,16 +281,16 @@ public class LuceneAppenderator implements Appenderator, Runnable
   public ListenableFuture<?> drop(SegmentIdentifier identifier)
   {
     final LuceneDruidSegment segment = segments.get(identifier);
-    if (segment != null) {
-      timeline.remove(
-          identifier.getInterval(),
-          identifier.getVersion(),
-          identifier.getShardSpec().createChunk(segment)
-      );
+    if (segment != null)
+    {
+      timeline.remove(identifier.getInterval(), identifier.getVersion(),
+          identifier.getShardSpec().createChunk(segment));
       segments.remove(identifier);
-      try {
+      try
+      {
         segment.close();
-      } catch (IOException e) {
+      } catch (IOException e)
+      {
         log.error(e.getMessage(), e);
       }
     }
@@ -296,10 +300,13 @@ public class LuceneAppenderator implements Appenderator, Runnable
   @Override
   public ListenableFuture<Object> persistAll(Committer committer)
   {
-    for (LuceneDruidSegment segment : segments.values()) {
-      try {
+    for (LuceneDruidSegment segment : segments.values())
+    {
+      try
+      {
         segment.persist();
-      } catch (IOException e) {
+      } catch (IOException e)
+      {
         log.error(e.getMessage(), e);
       }
     }
@@ -309,44 +316,50 @@ public class LuceneAppenderator implements Appenderator, Runnable
 
   @Override
   public ListenableFuture<SegmentsAndMetadata> push(
-      final List<SegmentIdentifier> identifiers,
-      final Committer committer
-  )
+      final List<SegmentIdentifier> identifiers, final Committer committer)
   {
-    // TODO - should persist to disk and push data to deep storage in a background thread
-    return Futures.immediateFuture(
-        new SegmentsAndMetadata(
-            ImmutableList.<DataSegment>of(),
-            committer.getMetadata()
-        )
-    );
+    // TODO - should persist to disk and push data to deep storage in a
+    // background thread
+    return Futures.immediateFuture(new SegmentsAndMetadata(ImmutableList
+        .<DataSegment> of(), committer.getMetadata()));
   }
 
   @Override
-  public void close() {
+  public void close()
+  {
     indexRefresher.interrupt();
-    try {
+    try
+    {
       indexRefresher.join();
-    } catch (InterruptedException e) {
+    } catch (InterruptedException e)
+    {
       log.error(e.getMessage(), e);
     }
   }
 
   @Override
-  public void run() {
-    while(!isClosed) {
+  public void run()
+  {
+    while (!isClosed)
+    {
       log.info("refresh index segments");
-      for (LuceneDruidSegment segment : segments.values()) {
-        try {
+      for (LuceneDruidSegment segment : segments.values())
+      {
+        try
+        {
           segment.refreshRealtimeReader();
-        } catch (IOException e) {
+        } catch (IOException e)
+        {
           log.error(e.getMessage(), e);
         }
       }
-      
-      try {
-        Thread.sleep(DEFAULT_INDEX_REFRESH_INTERVAL_SECONDS * 1000);   // refresh eery
-      } catch (InterruptedException ie) {
+
+      try
+      {
+        Thread.sleep(DEFAULT_INDEX_REFRESH_INTERVAL_SECONDS * 1000); // refresh
+                                                                     // eery
+      } catch (InterruptedException ie)
+      {
         continue;
       }
     }

@@ -23,37 +23,45 @@ import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionSchema.ValueType;
 import io.druid.data.input.impl.DimensionsSpec;
 
-import java.util.Set;
-
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoublePoint;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.TextField;
 
+import java.util.Set;
+
 public class LuceneDocumentBuilder
 {
   private final DimensionsSpec dimensionsSpec;
-  
-  public LuceneDocumentBuilder(DimensionsSpec dimensionsSpec) {
+
+  public LuceneDocumentBuilder(DimensionsSpec dimensionsSpec)
+  {
     this.dimensionsSpec = dimensionsSpec;
   }
-  
-  public Document buildLuceneDocument(InputRow row) {
+
+  public Document buildLuceneDocument(InputRow row)
+  {
     Set<String> excludedDimensions = dimensionsSpec.getDimensionExclusions();
     Document doc = new Document();
-    for (String dimensionName : dimensionsSpec.getDimensionNames()) {
-      if (excludedDimensions != null && !excludedDimensions.isEmpty() && excludedDimensions.contains(dimensionName)) {
+    for (String dimensionName : dimensionsSpec.getDimensionNames())
+    {
+      if (excludedDimensions != null && !excludedDimensions.isEmpty()
+          && excludedDimensions.contains(dimensionName))
+      {
         continue;
       }
       DimensionSchema schema = dimensionsSpec.getSchema(dimensionName);
       Object value = row.getRaw(dimensionName);
-      if (ValueType.STRING.equals(schema.getValueType())) {
+      if (ValueType.STRING.equals(schema.getValueType()))
+      {
         doc.add(new TextField(dimensionName, String.valueOf(value), Store.NO));
-      } else if (ValueType.FLOAT.equals(schema.getValueType())) {
-        doc.add(new DoublePoint(dimensionName, (Double)value));
-      } else if (ValueType.LONG.equals(schema.getValueType())) {
-        doc.add(new LongPoint(dimensionName, (Long)value));
+      } else if (ValueType.FLOAT.equals(schema.getValueType()))
+      {
+        doc.add(new DoublePoint(dimensionName, (Double) value));
+      } else if (ValueType.LONG.equals(schema.getValueType()))
+      {
+        doc.add(new LongPoint(dimensionName, (Long) value));
       }
     }
     return doc;

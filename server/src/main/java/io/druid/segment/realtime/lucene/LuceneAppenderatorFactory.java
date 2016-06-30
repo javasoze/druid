@@ -28,7 +28,7 @@ import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.realtime.FireDepartmentMetrics;
 import io.druid.segment.realtime.appenderator.Appenderator;
-import io.druid.segment.realtime.skunkworks.AppenderatorFactory;
+import io.druid.segment.realtime.appenderator.AppenderatorFactory;
 
 import java.util.concurrent.ExecutorService;
 
@@ -40,20 +40,17 @@ public class LuceneAppenderatorFactory implements AppenderatorFactory
   @JsonCreator
   public LuceneAppenderatorFactory(
       @JacksonInject QueryRunnerFactoryConglomerate conglomerate,
-      @JacksonInject @Processing ExecutorService queryExecutorService
-  )
+      @JacksonInject @Processing ExecutorService queryExecutorService)
   {
     this.conglomerate = conglomerate;
     this.queryExecutorService = queryExecutorService;
   }
 
   @Override
-  public Appenderator build(
-      DataSchema schema,
-      RealtimeTuningConfig config,
-      FireDepartmentMetrics metrics
-  )
+  public Appenderator build(DataSchema schema, RealtimeTuningConfig config,
+      FireDepartmentMetrics metrics)
   {
-    return new LuceneAppenderator(schema, config, conglomerate, queryExecutorService);
+    return new LuceneAppenderator(schema, config, conglomerate,
+        queryExecutorService);
   }
 }

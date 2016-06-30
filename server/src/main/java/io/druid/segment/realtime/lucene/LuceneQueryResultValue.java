@@ -30,10 +30,8 @@ public class LuceneQueryResultValue
   private final long size;
 
   @JsonCreator
-  public LuceneQueryResultValue(
-      @JsonProperty("size") long size,
-      @JsonProperty("count") long count
-  )
+  public LuceneQueryResultValue(@JsonProperty("size") long size,
+      @JsonProperty("count") long count)
   {
     this.size = size;
     this.count = count;
@@ -44,7 +42,7 @@ public class LuceneQueryResultValue
   {
     return count;
   }
-  
+
   @JsonProperty
   public long getSize()
   {
@@ -54,19 +52,19 @@ public class LuceneQueryResultValue
   @Override
   public String toString()
   {
-    return "LuceneQueryResultValue{" +
-           "count=" + count + ", " +
-           "size=" + size +
-           '}';
+    return "LuceneQueryResultValue{" + "count=" + count + ", " + "size=" + size
+        + '}';
   }
 
   @Override
   public boolean equals(Object o)
   {
-    if (this == o) {
+    if (this == o)
+    {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (o == null || getClass() != o.getClass())
+    {
       return false;
     }
     LuceneQueryResultValue that = (LuceneQueryResultValue) o;

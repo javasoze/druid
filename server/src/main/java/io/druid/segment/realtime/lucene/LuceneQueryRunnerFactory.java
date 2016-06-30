@@ -41,41 +41,37 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.TopDocs;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
-public class LuceneQueryRunnerFactory
-    implements QueryRunnerFactory<Result<LuceneQueryResultValue>, LuceneDruidQuery>
+public class LuceneQueryRunnerFactory implements
+    QueryRunnerFactory<Result<LuceneQueryResultValue>, LuceneDruidQuery>
 {
   private static final EmittingLogger log = new EmittingLogger(
       LuceneQueryRunnerFactory.class);
   private final QueryWatcher watcher;
 
   @Inject
-  public LuceneQueryRunnerFactory(
-      QueryWatcher watcher
-  )
+  public LuceneQueryRunnerFactory(QueryWatcher watcher)
   {
     this.watcher = watcher;
   }
 
   @Override
-  public QueryRunner<Result<LuceneQueryResultValue>> createRunner(final Segment segment)
+  public QueryRunner<Result<LuceneQueryResultValue>> createRunner(
+      final Segment segment)
   {
-    return new LuceneQueryRunner((LuceneDruidSegment) segment);
+    return new LuceneQueryRunner(segment.as(LuceneDruidSegment.class));
   }
 
   @Override
   public QueryRunner<Result<LuceneQueryResultValue>> mergeRunners(
       final ExecutorService queryExecutor,
-      final Iterable<QueryRunner<Result<LuceneQueryResultValue>>> runners
-  )
+      final Iterable<QueryRunner<Result<LuceneQueryResultValue>>> runners)
   {
     return new ChainedExecutionQueryRunner<Result<LuceneQueryResultValue>>(
-        queryExecutor,
-        watcher,
-        runners
-    );
+        queryExecutor, watcher, runners);
   }
 
   @Override
@@ -84,7 +80,8 @@ public class LuceneQueryRunnerFactory
     return new LuceneQueryToolChest();
   }
 
-  private static class LuceneQueryRunner implements QueryRunner<Result<LuceneQueryResultValue>>
+  private static class LuceneQueryRunner implements
+      QueryRunner<Result<LuceneQueryResultValue>>
   {
     private final LuceneDruidSegment segment;
 
@@ -96,39 +93,53 @@ public class LuceneQueryRunnerFactory
     @Override
     public Sequence<Result<LuceneQueryResultValue>> run(
         final Query<Result<LuceneQueryResultValue>> query,
-        final Map<String, Object> responseContext
-    )
+        final Map<String, Object> responseContext)
     {
       log.info("here... handling run");
       LuceneDruidQuery luceneDruidQuery = (LuceneDruidQuery) query;
       long numHits = 0;
-      long totalDocs = segment.numRows();
-      String queryString = luceneDruidQuery.getQueryString();
-      log.info("query string: " + queryString);
-      Analyzer analyzer = new StandardAnalyzer();
-      QueryParser parser = new QueryParser(luceneDruidQuery.getDefaultField(), analyzer);
-      try (IndexReader reader = segment.getIndexReader()) {
-        if (reader != null) {
-          log.info("we have a reader to search with " + reader.numDocs() +" docs");
-          org.apache.lucene.search.Query luceneQuery = (queryString == null || "*".equals(queryString)) ? 
-              new MatchAllDocsQuery() :
-              parser.parse(queryString);
+
+      IndexReader reader = null;
+      try
+      {
+        reader = segment.getIndexReader();
+        String queryString = luceneDruidQuery.getQueryString();
+        log.info("query string: " + queryString);
+        Analyzer analyzer = new StandardAnalyzer();
+        QueryParser parser = new QueryParser(
+            luceneDruidQuery.getDefaultField(), analyzer);
+        if (reader != null)
+        {
+          log.info("we have a reader to search with " + reader.numDocs()
+              + " docs");
+          org.apache.lucene.search.Query luceneQuery = (queryString == null || "*"
+              .equals(queryString)) ? new MatchAllDocsQuery() : parser
+              .parse(queryString);
           log.info("lucene query: " + luceneQuery);
-          IndexSearcher searcher = new IndexSearcher(reader);        
-          TopDocs td = searcher.search(luceneQuery, luceneDruidQuery.getCount());
+          IndexSearcher searcher = new IndexSearcher(reader);
+          TopDocs td = searcher
+              .search(luceneQuery, luceneDruidQuery.getCount());
           numHits = td.totalHits;
         }
-      } catch (Exception e) {
+      } catch (Exception e)
+      {
         log.error(e, e.getMessage());
+      } finally
+      {
+        if (reader != null)
+        {
+          try
+          {
+            reader.close();
+          } catch (IOException e)
+          {
+            log.error(e.getMessage(), e);
+          }
+        }
       }
-      return Sequences.simple(
-          ImmutableList.of(
-              new Result<>(
-                  segment.getDataInterval().getStart(),
-                  new LuceneQueryResultValue(numHits, totalDocs)
-              )
-          )
-      );
+      return Sequences.simple(ImmutableList.of(new Result<>(segment
+          .getDataInterval().getStart(), new LuceneQueryResultValue(numHits,
+          segment.numRows()))));
     }
   }
 }

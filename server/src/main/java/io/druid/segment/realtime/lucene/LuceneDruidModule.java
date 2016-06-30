@@ -28,7 +28,7 @@ import com.google.inject.Binder;
 import io.druid.guice.DruidBinders;
 import io.druid.guice.LazySingleton;
 import io.druid.initialization.DruidModule;
-import io.druid.segment.realtime.skunkworks.AppenderatorPlumberSchool;
+import io.druid.segment.realtime.appenderator.AppenderatorPlumberSchool;
 
 import java.util.List;
 

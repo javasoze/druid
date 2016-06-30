@@ -26,47 +26,44 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.Result;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.Map;
 
 public class LuceneDruidQuery extends BaseQuery<Result<LuceneQueryResultValue>>
 {
+
   public static final String TYPE = "lucene";
   private final String query;
   private final String defaultField;
   private final int count;
 
   @JsonCreator
-  public LuceneDruidQuery(
-      @JsonProperty("dataSource") DataSource dataSource,
+  public LuceneDruidQuery(@JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("context") Map<String, Object> context,
       @JsonProperty("defaultField") String defaultField,
-      @JsonProperty("query") String query,
-      @JsonProperty("count") int count
-  )
+      @JsonProperty("query") String query, @JsonProperty("count") int count)
   {
-    super(
-        dataSource,
-        querySegmentSpec,
-        false,
-        context
-    );
+    super(dataSource, querySegmentSpec, false, context);
     this.defaultField = defaultField;
-    this.query = query;    
+    this.query = query;
     this.count = count;
   }
-  
-  public int getCount() {
+
+  public int getCount()
+  {
     return count;
   }
-  
-  public String getDefaultField() {
+
+  public String getDefaultField()
+  {
     return defaultField;
   }
-  
-  public String getQueryString() {
+
+  public String getQueryString()
+  {
     return query;
   }
 
@@ -83,20 +80,32 @@ public class LuceneDruidQuery extends BaseQuery<Result<LuceneQueryResultValue>>
   }
 
   @Override
-  public Query<Result<LuceneQueryResultValue>> withOverriddenContext(Map<String, Object> contextOverride)
+  public Query<Result<LuceneQueryResultValue>> withOverriddenContext(
+      Map<String, Object> contextOverride)
   {
-    return new LuceneDruidQuery(getDataSource(), getQuerySegmentSpec(), computeOverridenContext(contextOverride), defaultField, query, count);
+    return new LuceneDruidQuery(getDataSource(), getQuerySegmentSpec(),
+        computeOverridenContext(contextOverride), defaultField, query, count);
   }
 
   @Override
-  public Query<Result<LuceneQueryResultValue>> withQuerySegmentSpec(QuerySegmentSpec spec)
+  public Query<Result<LuceneQueryResultValue>> withQuerySegmentSpec(
+      QuerySegmentSpec spec)
   {
-    return new LuceneDruidQuery(getDataSource(), spec, getContext(), defaultField, query, count);
+    return new LuceneDruidQuery(getDataSource(), spec, getContext(),
+        defaultField, query, count);
   }
 
   @Override
-  public Query<Result<LuceneQueryResultValue>> withDataSource(DataSource dataSource)
+  public Query<Result<LuceneQueryResultValue>> withDataSource(
+      DataSource dataSource)
   {
-    return new LuceneDruidQuery(dataSource, getQuerySegmentSpec(), getContext(), defaultField, query, count);
+    return new LuceneDruidQuery(dataSource, getQuerySegmentSpec(),
+        getContext(), defaultField, query, count);
+  }
+
+  @Override
+  public DimFilter getFilter()
+  {
+    return null;
   }
 }

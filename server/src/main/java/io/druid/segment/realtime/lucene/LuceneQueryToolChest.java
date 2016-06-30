@@ -37,47 +37,47 @@ import io.druid.query.aggregation.MetricManipulationFn;
 
 import javax.annotation.Nullable;
 
-public class LuceneQueryToolChest
-    extends QueryToolChest<Result<LuceneQueryResultValue>, LuceneDruidQuery>
+public class LuceneQueryToolChest extends
+    QueryToolChest<Result<LuceneQueryResultValue>, LuceneDruidQuery>
 {
   @Override
   public QueryRunner<Result<LuceneQueryResultValue>> mergeResults(
-      final QueryRunner<Result<LuceneQueryResultValue>> baseRunner
-  )
+      final QueryRunner<Result<LuceneQueryResultValue>> baseRunner)
+
   {
-    return new ResultMergeQueryRunner<Result<LuceneQueryResultValue>>(baseRunner)
+    return new ResultMergeQueryRunner<Result<LuceneQueryResultValue>>(
+        baseRunner)
     {
       @Override
       protected Ordering<Result<LuceneQueryResultValue>> makeOrdering(
-          final Query<Result<LuceneQueryResultValue>> query
-      )
+          final Query<Result<LuceneQueryResultValue>> query)
       {
         return (Ordering) Ordering.allEqual().nullsFirst();
       }
 
       @Override
       protected BinaryFn<Result<LuceneQueryResultValue>, Result<LuceneQueryResultValue>, Result<LuceneQueryResultValue>> createMergeFn(
-          final Query<Result<LuceneQueryResultValue>> query
-      )
+          final Query<Result<LuceneQueryResultValue>> query)
       {
         return new BinaryFn<Result<LuceneQueryResultValue>, Result<LuceneQueryResultValue>, Result<LuceneQueryResultValue>>()
         {
           @Override
           public Result<LuceneQueryResultValue> apply(
               @Nullable Result<LuceneQueryResultValue> result1,
-              @Nullable Result<LuceneQueryResultValue> result2
-          )
+              @Nullable Result<LuceneQueryResultValue> result2)
           {
-            if (result1 == null) {
+            if (result1 == null)
+            {
               return result2;
-            } else if (result2 == null) {
+            } else if (result2 == null)
+            {
               return result1;
-            } else {
-              return new Result<>(
-                  JodaUtils.minDateTime(result1.getTimestamp(), result2.getTimestamp()),
-                  new LuceneQueryResultValue(result1.getValue().getSize() + result1.getValue().getSize(),
-                      result1.getValue().getCount() + result2.getValue().getCount())
-              );
+            } else
+            {
+              return new Result<>(JodaUtils.minDateTime(result1.getTimestamp(),
+                  result2.getTimestamp()), new LuceneQueryResultValue(result1
+                  .getValue().getSize() + result1.getValue().getSize(), result1
+                  .getValue().getCount() + result2.getValue().getCount()));
             }
           }
         };
@@ -87,17 +87,14 @@ public class LuceneQueryToolChest
 
   @Override
   public ServiceMetricEvent.Builder makeMetricBuilder(
-      final LuceneDruidQuery query
-  )
+      final LuceneDruidQuery query)
   {
     return DruidMetrics.makePartialQueryTimeMetric(query);
   }
 
   @Override
   public Function<Result<LuceneQueryResultValue>, Result<LuceneQueryResultValue>> makePreComputeManipulatorFn(
-      final LuceneDruidQuery query,
-      final MetricManipulationFn fn
-  )
+      final LuceneDruidQuery query, final MetricManipulationFn fn)
   {
     return Functions.identity();
   }

@@ -19,6 +19,11 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.collect.Ordering;
+import com.metamx.common.guava.Sequence;
+
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
@@ -30,19 +35,15 @@ import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.topn.TopNQuery;
 
-import java.util.List;
-import java.util.Map;
-
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.common.collect.Ordering;
-import com.metamx.common.guava.Sequence;
+import java.util.List;
+import java.util.Map;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "queryType")
-@JsonSubTypes(value = {
+@JsonSubTypes(value =
+{
     @JsonSubTypes.Type(name = Query.TIMESERIES, value = TimeseriesQuery.class),
     @JsonSubTypes.Type(name = Query.SEARCH, value = SearchQuery.class),
     @JsonSubTypes.Type(name = Query.TIME_BOUNDARY, value = TimeBoundaryQuery.class),
